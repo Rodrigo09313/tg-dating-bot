@@ -1,0 +1,20 @@
+version: "3.9"
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: tg_dating_db
+    environment:
+      POSTGRES_USER: tguser
+      POSTGRES_PASSWORD: tgpass
+      POSTGRES_DB: tgdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tguser -d tgdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+volumes:
+  db_data:
