@@ -18,6 +18,26 @@ cursor .
 
 Ежедневная работа (git)
 
+
+
+
+# Клонируем
+git clone https://github.com/<your_user>/tg-dating-bot.git
+cd tg-dating-bot
+
+# Создаём .env на основе примера
+cp .env.example .env
+# Открой и заполни TELEGRAM_TOKEN и YANDEX_GEOCODER_KEY
+# nano .env  (или любым редактором)
+
+# Поднимаем БД (создастся с initdb-скриптами)
+docker compose up -d db
+docker compose logs -f db | sed -n '1,120p'  # убедиться, что ready
+
+# Устанавливаем зависимости и стартуем бота
+npm i
+npm run dev
+
 git add .
 git commit -m "Рабочее меню и регистрация"
 git push
