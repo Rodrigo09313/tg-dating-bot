@@ -1,11 +1,13 @@
 // src/bot/registration.ts
-import TelegramBot, { Message } from "node-telegram-bot-api";
+import TelegramBot, { Message, ReplyKeyboardMarkup, KeyboardButton } from "node-telegram-bot-api";
 import { query } from "../db";
 import { DbUser, sendScreen, setState } from "./helpers";
 import { TXT } from "../ui/text";
 import { kb } from "../ui/buttons";
 import { showProfile } from "./profile";
 import { importPhotosFromTelegramProfile, addPhotoSafely } from "./photo";
+import { reverseGeocode } from "../lib/geocode";
+import { hideReplyKeyboard } from "../lib/hideReply";
 
 // === Возраст ===
 export async function regAskAge(bot: TelegramBot, chatId: number, user: DbUser) {
@@ -34,32 +36,110 @@ export async function regAskSeek(bot: TelegramBot, chatId: number, user: DbUser)
 }
 
 // === Город ===
+
 export async function regAskCity(bot: TelegramBot, chatId: number, user: DbUser) {
   await setState(chatId, "reg_city");
-  await sendScreen(bot, chatId, user, { text: TXT.reg.askCity });
+  const replyKb: ReplyKeyboardMarkup = {
+    keyboard: [
+      [ { text: TXT.reg.cityShareBtn, request_location: true } as KeyboardButton ],
+      [ { text: TXT.reg.cityManualBtn } ]
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+  await bot.sendMessage(chatId, TXT.reg.askCity, { reply_markup: replyKb });
 }
+
+
+/** Показать экран подтверждения города через reply-кнопку с подсказкой. */
+async function askCityTextWithSuggest(
+  bot: TelegramBot,
+  chatId: number,
+  user: DbUser,
+  suggest?: string | null
+) {
+  await setState(chatId, "reg_city_text");
+  const lines = [
+    suggest ? `Похоже, это <b>${suggest}</b>.` : "Подтверди или исправь город.",
+    "Нажми кнопку ниже или напиши город текстом.\nПример: «Москва».",
+  ];
+  const replyKb: ReplyKeyboardMarkup = {
+    keyboard: suggest ? [[{ text: suggest }]] : [[{ text: "Москва" }]],
+    resize_keyboard: true,
+    one_time_keyboard: true,
+  };
+  await bot.sendMessage(chatId, lines.join("\n"), {
+    parse_mode: "HTML",
+    reply_markup: replyKb,
+  });
+}
+
+/** Обработка шага "Город": локация -> подсказка; либо сразу текст. */
 export async function handleRegCity(bot: TelegramBot, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
-  if (msg.location) {
-    const { latitude, longitude } = msg.location;
-    await query(`
-      UPDATE users
-      SET geom = ST_SetSRID(ST_MakePoint($2,$3),4326), updated_at = now()
-      WHERE tg_id = $1
-    `, [chatId, longitude, latitude]);
-    await bot.sendMessage(chatId, "Гео сохранено. Теперь напиши название города текстом (например: «Москва»).");
+  const text = (msg.text ?? "").trim();
+
+  // Пользователь ткнул "✏️ Ввести город текстом" — открываем ввод текста (reply с подсказкой уберём после ввода)
+  if (text === TXT.reg.cityManualBtn) {
+    await askCityTextWithSuggest(bot, chatId, user, undefined);
     return;
   }
-  if (msg.text) {
-    const city = msg.text.trim();
-    if (!city || city.length < 2) {
-      await bot.sendMessage(chatId, "Введите корректное название города.");
-      return;
-    }
-    await query(`UPDATE users SET city_name = $2, updated_at = now() WHERE tg_id = $1`, [chatId, city]);
-    await regAskName(bot, chatId, user);
+
+  // 1) Пришла геолокация — сохраняем координаты и показываем подсказку города (НЕ сохраняем текст геокодера)
+  if (msg.location) {
+    const { latitude, longitude } = msg.location;
+
+    await query(
+      `UPDATE users
+         SET geom = ST_SetSRID(ST_MakePoint($2,$3),4326),
+             updated_at = now()
+       WHERE tg_id = $1`,
+      [chatId, longitude, latitude]
+    );
+
+    let suggest: string | null = null;
+    try {
+      const res = await reverseGeocode(latitude, longitude, "ru");
+      const name = res.cityName && res.cityName.trim();
+      if (name && name.length >= 2) suggest = name;
+    } catch {}
+
+    await askCityTextWithSuggest(bot, chatId, user, suggest);
+    return;
   }
+
+  // 2) Нет локации. Если текста нет (стикер/фото и т.п.) — повторим экран города с кнопками
+  if (!text) {
+    await regAskCity(bot, chatId, user);
+    return;
+  }
+
+  // Если внезапно пришёл текст кнопки "📍 Поделиться геолокацией" — подскажем прислать локацию ещё раз
+  if (text === TXT.reg.cityShareBtn) {
+    await regAskCity(bot, chatId, user);
+    return;
+  }
+
+  // 3) Это пользовательский ввод города — валидируем и сохраняем
+  const city = text.replace(/\s+/g, " ").trim();
+  if (city.length < 2 || city.length > 80) {
+    await bot.sendMessage(chatId, "Введите корректное название города (2–80 символов).");
+    return;
+  }
+
+  await query(
+    `UPDATE users
+       SET city_name = $2,
+           updated_at = now()
+     WHERE tg_id = $1`,
+    [chatId, city]
+  );
+
+  // Скрыть reply-клавиатуру «без мусора» и перейти к имени
+  await hideReplyKeyboard(bot, chatId);
+  await regAskName(bot, chatId, user);
 }
+
 
 // === Имя ===
 export async function regAskName(bot: TelegramBot, chatId: number, user: DbUser) {
@@ -111,8 +191,6 @@ function buildRegPhotoText(loaded: number): string {
 
 export async function regAskPhoto(bot: TelegramBot, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo");
-
-  // Автопопытка импорта, если фото ещё нет
   const cur = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   if ((cur.rows[0]?.c ?? 0) === 0) {
     const imported = await importPhotosFromTelegramProfile(bot, chatId, { replace: false, limit: 3 });
@@ -121,7 +199,6 @@ export async function regAskPhoto(bot: TelegramBot, chatId: number, user: DbUser
       return;
     }
   }
-
   const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   const c = r.rows[0]?.c ?? 0;
   await sendScreen(bot, chatId, user, { text: buildRegPhotoText(c), keyboard: kb.regPhotoActions() });

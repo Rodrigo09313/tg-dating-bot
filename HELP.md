@@ -18,6 +18,13 @@ cursor .
 
 Ежедневная работа (git)
 
+git add .
+git commit -m "ваше описание изменений"
+git push
+
+
+
+
 # 1) посмотреть изменения
 
 git status

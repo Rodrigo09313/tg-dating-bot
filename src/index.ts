@@ -11,6 +11,7 @@ import {
 } from "./bot/registration";
 import { handleCallback } from "./router/callback";
 import { showProfile } from "./bot/profile";
+import { TXT } from "./ui/text";
 
 async function loadUser(tgId: number) {
   const r = await query(`
@@ -22,23 +23,26 @@ async function loadUser(tgId: number) {
 
 async function bootstrap() {
   console.log("Waiting for database...");
-  await waitForDb(); // дождёмся готовности Postgres
+  await waitForDb();
   console.log("Database is ready.");
 
   const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
   // Команды
   bot.setMyCommands([
-    { command: "start", description: "Старт" },
-    { command: "menu", description: "Меню" },
-    { command: "profile", description: "Профиль" },
-    { command: "browse", description: "Смотреть анкеты" },
-    { command: "roulette", description: "Чат-рулетка" },
-    { command: "contacts", description: "Принятые контакты" },
-    { command: "requests", description: "Запросы на контакты" },
-    { command: "help", description: "Справка" }
+    { command: "start",     description: "Старт" },
+    { command: "menu",      description: "Меню" },
+    { command: "profile",   description: "Профиль" },
+    { command: "browse",    description: "Смотреть анкеты" },
+    { command: "roulette",  description: "Чат-рулетка" },
+    { command: "nearby",    description: "Люди рядом" },
+    { command: "contacts",  description: "Принятые контакты" },
+    { command: "requests",  description: "Запросы на контакты" },
+    { command: "help",      description: "Справка" },
+    { command: "sharetest", description: "Тест кнопки геолокации" },
   ]).catch(()=>{});
 
+  // /start,/menu — вход
   bot.onText(/^\/(start|menu)$/i, async (msg) => {
     const chatId = msg.chat.id;
     const u = await ensureUser(chatId, msg.from?.username);
@@ -59,6 +63,19 @@ async function bootstrap() {
     await showProfile(bot, msg.chat.id, u);
   });
 
+  // Тестовая команда для проверки reply-кнопки геолокации
+  bot.onText(/^\/sharetest$/i, async (msg) => {
+    const kb = {
+      keyboard: [
+        [ { text: TXT.reg.cityShareBtn, request_location: true } ],
+        [ { text: TXT.reg.cityManualBtn } ],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: true
+    } as any;
+    await bot.sendMessage(msg.chat.id, "Тест: на мобильном Telegram появится кнопка ниже.", { reply_markup: kb });
+  });
+
   // Текст/медиа по состояниям
   bot.on("message", async (msg: Message) => {
     if (!msg.from) return;
@@ -73,24 +90,42 @@ async function bootstrap() {
       await handleRegAge(bot, msg, fresh);
       return;
     }
+
+    if (state === "reg_gender" || state === "reg_seek") {
+      // Эти шаги обрабатываются через callback-кнопки; игнорируем произвольные сообщения
+      return;
+    }
+
     if (state === "reg_city") {
       if (msg.location || msg.text) {
         await handleRegCity(bot, msg, fresh);
         return;
       }
+      return;
     }
+
+    if (state === "reg_city_text") {
+      if (msg.text || msg.location) {
+        await handleRegCity(bot, msg, fresh); // используем тот же обработчик (пришёл текст города)
+        return;
+      }
+      return;
+    }
+
     if (state === "reg_name") {
       if (msg.text) {
         await handleRegName(bot, msg, fresh);
       }
       return;
     }
+
     if (state === "reg_about") {
       if (msg.text) {
         await handleRegAbout(bot, msg, fresh);
       }
       return;
     }
+
     if (state === "reg_photo") {
       if (msg.photo && msg.photo.length) {
         await handleRegPhotoMessage(bot, msg, fresh);
@@ -98,6 +133,7 @@ async function bootstrap() {
       }
       return;
     }
+
     if (state === "reg_preview") {
       await regShowPreview(bot, chatId, fresh);
       return;
@@ -139,7 +175,7 @@ async function bootstrap() {
     }
   });
 
-  // Кнопки
+  // Кнопки (inline callbacks)
   bot.on("callback_query", async (cq) => {
     await handleCallback(bot, cq);
   });
