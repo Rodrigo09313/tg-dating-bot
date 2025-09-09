@@ -27,11 +27,12 @@ function importFailText(): string {
 
 export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
   const chatId = cq.message?.chat.id;
-  if (!chatId || !cq.data) return;
-  const parsed = parseCb(cq.data);
-  if (!parsed) return ack(bot, cq.id);
+  if (!chatId || !cq.data) { if (cq.id) await ack(bot, cq.id); return; }
 
-  const user = await ensureUser(chatId, cq.from.username);
+  const parsed = parseCb(cq.data);
+  if (!parsed) { await ack(bot, cq.id); return; }
+
+  const user = await ensureUser(chatId, cq.from?.username || null);
   if (!user || isScreenExpired(user)) {
     await ack(bot, cq.id, "Экран устарел");
     await showMainMenu(bot, chatId, user);
@@ -40,14 +41,21 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
 
   const { prefix, verb, id } = parsed;
 
-  // SYS
-  if (prefix === "sys" && verb === "help") {
-    await ack(bot, cq.id);
-    await showHelp(bot, chatId, user);
-    return;
+  // ===== SYS =====
+  if (prefix === "sys") {
+    if (verb === "help") {
+      await ack(bot, cq.id);
+      await showHelp(bot, chatId, user);
+      return;
+    }
+    if (verb === "menu") {
+      await ack(bot, cq.id);
+      await showMainMenu(bot, chatId, user);
+      return;
+    }
   }
 
-  // REG
+  // ===== REG =====
   if (prefix === "reg") {
     if (verb === "gender" && (id === "m" || id === "f")) {
       await ack(bot, cq.id);
@@ -98,7 +106,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     }
   }
 
-  // PRF (профиль)
+  // ===== PRF =====
   if (prefix === "prf") {
     if (verb === "open") {
       await ack(bot, cq.id);
@@ -149,7 +157,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       return;
     }
 
-    // Навигация по фото карусели
+    // Навигация по фото-карусели
     if (verb === "phnav") {
       await ack(bot, cq.id);
       const idx = Number(id ?? 0);
@@ -177,24 +185,29 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       return;
     }
 
-    // Ничего не делать (центр "1/3")
+    // Ничего не делать (центр "x/y")
     if (verb === "noop") {
       await ack(bot, cq.id);
       return;
     }
 
+    // Подтверждение «пересоздать анкету»
     if (verb === "restart_confirm") {
       await ack(bot, cq.id);
-      await bot.sendMessage(chatId, "Сбросить анкету и пройти регистрацию заново?", {
-        reply_markup: { inline_keyboard: [
-          [{ text: "Да, сбросить", callback_data: "prf:restart_yes" }],
-          [{ text: "Отмена",       callback_data: "prf:open" }]
-        ] }
+      await sendScreen(bot, chatId, user, {
+        text: "Сбросить анкету и пройти регистрацию заново?",
+        keyboard: [
+          [{ text: "✅ Да, сбросить", callback_data: "prf:restart_yes" }],
+          [{ text: "❌ Отмена",      callback_data: "prf:open" }]
+        ],
       });
       return;
     }
+
     if (verb === "restart_yes") {
       await ack(bot, cq.id);
+
+      // Сбрасываем данные пользователя
       await query(`DELETE FROM photos WHERE user_id=$1`, [chatId]);
       await query(`
         UPDATE users
@@ -203,12 +216,15 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
             status='new', state=NULL, updated_at=now()
         WHERE tg_id=$1
       `, [chatId]);
+
+      // Начинаем регистрацию заново
       const { regAskAge } = await import("../bot/registration");
       await regAskAge(bot, chatId, user);
       return;
     }
   }
 
+  // Fallback: меню
   await ack(bot, cq.id, "Скоро будет");
   await showMainMenu(bot, chatId, user);
 }

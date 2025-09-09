@@ -1,14 +1,23 @@
 // src/ui/cb.ts
 import { CB } from "../types";
-export function mkCb(prefix: typeof CB[keyof typeof CB], verb: string, id?: string|number): string {
-  const parts = [prefix, verb];
-  if (id !== undefined && id !== null) parts.push(String(id));
-  const s = parts.join(":");
-  if (Buffer.byteLength(s,"utf8") > 64) throw new Error(`callback_data слишком длинный (${Buffer.byteLength(s)})`);
-  return s;
-}
-export function parseCb(data: string): { prefix:string; verb:string; id?:string } | null {
-  const [prefix, verb, id] = data.split(":");
+
+export type ParsedCb = {
+  prefix: string;
+  verb: string;
+  id?: string;
+  raw: string;
+};
+
+export function parseCb(raw?: string): ParsedCb | null {
+  const s = String(raw || "");
+  if (!s) return null;
+  const [prefix = "", verb = "", id] = s.split(":");
   if (!prefix || !verb) return null;
-  return { prefix, verb, id };
+  return { prefix, verb, id, raw: s };
+}
+
+/** Сборка callback_data: <prefix>:<verb>[:<id>] */
+export function mkCb(prefix: CB | string, verb: string, id?: string | number): string {
+  const base = `${prefix}:${verb}`;
+  return id === undefined ? base : `${base}:${String(id)}`;
 }

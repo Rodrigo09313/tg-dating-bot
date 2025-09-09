@@ -28,7 +28,25 @@ async function bootstrap() {
 
   const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
-  // Команды
+  
+  // === Глобальные перехватчики и логи ===
+  // Лог ошибок поллинга/сетевых
+  bot.on("polling_error", (e:any) => console.error("[polling_error]", e?.message || e));
+  (bot as any).on("error", (e:any) => console.error("[bot error]", e?.message || e));
+
+  // Обёртка над sendMessage: не даём отправить пустой текст
+  const __origSendMessage = bot.sendMessage.bind(bot);
+  bot.sendMessage = (chatId: number | string, text: any, options?: any) => {
+    const t = (typeof text === "string" ? text : "");
+    if (!t || !t.trim()) {
+      const err = new Error("sendMessage(text) был пустым — автозамена на «—»");
+      console.warn("[guard] Пустой текст в sendMessage. options=", options);
+      console.warn(err.stack?.split("\n").slice(0,4).join("\n"));
+      text = "—"; // безопасный видимый символ, чтобы Telegram не ругался
+    }
+    return __origSendMessage(chatId as any, text, options);
+  };
+// Команды
   bot.setMyCommands([
     { command: "start",     description: "Старт" },
     { command: "menu",      description: "Меню" },

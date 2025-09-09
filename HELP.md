@@ -9,7 +9,7 @@ git remote -v
 # origin git@github.com:Rodrigo09313/tg-dating-vip.git (fetch/push)
 
 Открыть в Cursor
-cd ~/project/tg-dating-vip
+cd ~/project/tg-dating-bot
 cursor .
 
 # из WSL (внутри папки проекта)
