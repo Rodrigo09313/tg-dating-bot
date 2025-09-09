@@ -224,7 +224,18 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     }
   }
 
-  // Fallback: меню
+  // Fallback:
+
+// ===== BRW =====
+  if (prefix === "brw") {
+    const { browseShowNext } = await import("../bot/browse");
+    if (verb === "start" || verb === "next") {
+      await ack(bot, cq.id);
+      await browseShowNext(bot, chatId, user);
+      return;
+    }
+  }
+// меню
   await ack(bot, cq.id, "Скоро будет");
   await showMainMenu(bot, chatId, user);
 }
