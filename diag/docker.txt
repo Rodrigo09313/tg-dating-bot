@@ -1,0 +1,260 @@
+### docker compose version
+Docker Compose version v2.39.2-desktop.1
+### docker compose config
+time="2025-09-12T20:24:27+03:00" level=warning msg="/home/rodrigo/projects/tg-dating-bot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+name: tg-dating-bot
+services:
+  db:
+    container_name: tg_dating_db
+    environment:
+      POSTGRES_DB: tgdb
+      POSTGRES_PASSWORD: tgpass
+      POSTGRES_USER: tguser
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      timeout: 5s
+      interval: 5s
+      retries: 30
+    image: postgis/postgis:15-3.4
+    networks:
+      default: null
+    ports:
+      - mode: ingress
+        target: 5432
+        published: "5432"
+        protocol: tcp
+    restart: unless-stopped
+    volumes:
+      - type: volume
+        source: pgdata
+        target: /var/lib/postgresql/data
+        volume: {}
+      - type: bind
+        source: /home/rodrigo/projects/tg-dating-bot/db/init
+        target: /docker-entrypoint-initdb.d
+        bind:
+          create_host_path: true
+networks:
+  default:
+    name: tg-dating-bot_default
+volumes:
+  pgdata:
+    name: tg-dating-bot_pgdata
+### docker compose ps
+time="2025-09-12T20:24:27+03:00" level=warning msg="/home/rodrigo/projects/tg-dating-bot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+NAME           IMAGE                    COMMAND                  SERVICE   CREATED      STATUS                    PORTS
+tg_dating_db   postgis/postgis:15-3.4   "docker-entrypoint.s…"   db        3 days ago   Up 30 minutes (healthy)   0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp
+### docker logs db (tail 200)
+time="2025-09-12T20:24:28+03:00" level=warning msg="/home/rodrigo/projects/tg-dating-bot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+tg_dating_db  | 2025-09-09 09:23:15.154 UTC [49] LOG:  checkpoint complete: wrote 1961 buffers (12.0%); 0 WAL file(s) added, 0 removed, 1 recycled; write=0.029 s, sync=0.174 s, total=0.212 s; sync files=319, longest=0.111 s, average=0.001 s; distance=14003 kB, estimate=14003 kB
+tg_dating_db  | 2025-09-09 09:23:15.167 UTC [48] LOG:  database system is shut down
+tg_dating_db  |  done
+tg_dating_db  | server stopped
+tg_dating_db  | 
+tg_dating_db  | PostgreSQL init process complete; ready for start up.
+tg_dating_db  | 
+tg_dating_db  | 2025-09-09 09:23:15.248 UTC [1] LOG:  starting PostgreSQL 15.8 (Debian 15.8-1.pgdg110+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
+tg_dating_db  | 2025-09-09 09:23:15.249 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+tg_dating_db  | 2025-09-09 09:23:15.249 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+tg_dating_db  | 2025-09-09 09:23:20.829 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+tg_dating_db  | 2025-09-09 09:23:20.836 UTC [66] LOG:  database system was shut down at 2025-09-09 09:23:15 UTC
+tg_dating_db  | 2025-09-09 09:23:20.843 UTC [1] LOG:  database system is ready to accept connections
+tg_dating_db  | 2025-09-09 09:28:26.334 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 09:28:36.864 UTC [64] LOG:  checkpoint complete: wrote 176 buffers (1.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=10.500 s, sync=0.023 s, total=10.530 s; sync files=80, longest=0.011 s, average=0.001 s; distance=911 kB, estimate=911 kB
+tg_dating_db  | 2025-09-09 09:33:26.983 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 09:33:27.306 UTC [64] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.233 s, sync=0.003 s, total=0.324 s; sync files=3, longest=0.002 s, average=0.001 s; distance=8 kB, estimate=820 kB
+tg_dating_db  | 2025-09-09 10:58:32.439 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 10:58:26.652 UTC [64] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.000 s, sync=0.003 s, total=0.000 s; sync files=4, longest=0.002 s, average=0.001 s; distance=5 kB, estimate=739 kB
+tg_dating_db  | 2025-09-09 11:03:38.373 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:03:34.431 UTC [64] LOG:  checkpoint complete: wrote 22 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.000 s, sync=0.017 s, total=0.000 s; sync files=9, longest=0.015 s, average=0.002 s; distance=100 kB, estimate=675 kB
+tg_dating_db  | 2025-09-09 11:13:38.582 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:13:39.243 UTC [64] LOG:  checkpoint complete: wrote 12 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.651 s, sync=0.005 s, total=0.662 s; sync files=7, longest=0.004 s, average=0.001 s; distance=35 kB, estimate=611 kB
+tg_dating_db  | 2025-09-09 11:18:38.824 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:18:45.917 UTC [64] LOG:  checkpoint complete: wrote 14 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=7.058 s, sync=0.005 s, total=7.094 s; sync files=11, longest=0.003 s, average=0.001 s; distance=24 kB, estimate=552 kB
+tg_dating_db  | 2025-09-09 11:23:38.299 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:23:40.463 UTC [64] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.620 s, sync=0.252 s, total=2.165 s; sync files=11, longest=0.110 s, average=0.023 s; distance=57 kB, estimate=503 kB
+tg_dating_db  | 2025-09-09 11:33:38.588 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:33:39.713 UTC [64] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.033 s, sync=0.018 s, total=1.125 s; sync files=10, longest=0.015 s, average=0.002 s; distance=15 kB, estimate=454 kB
+tg_dating_db  | 2025-09-09 11:38:38.768 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 11:38:40.108 UTC [64] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.240 s, sync=0.057 s, total=1.340 s; sync files=11, longest=0.036 s, average=0.006 s; distance=39 kB, estimate=413 kB
+tg_dating_db  | 2025-09-09 13:03:38.393 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:03:38.977 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.168 s, sync=0.007 s, total=0.585 s; sync files=2, longest=0.005 s, average=0.004 s; distance=6 kB, estimate=372 kB
+tg_dating_db  | 2025-09-09 13:08:38.526 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:08:39.091 UTC [64] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.525 s, sync=0.004 s, total=0.566 s; sync files=4, longest=0.003 s, average=0.001 s; distance=36 kB, estimate=338 kB
+tg_dating_db  | 2025-09-09 13:13:38.077 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:13:38.374 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.108 s, sync=0.039 s, total=0.297 s; sync files=2, longest=0.036 s, average=0.020 s; distance=9 kB, estimate=305 kB
+tg_dating_db  | 2025-09-09 13:18:38.437 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:18:38.555 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.108 s, sync=0.004 s, total=0.118 s; sync files=2, longest=0.003 s, average=0.002 s; distance=7 kB, estimate=276 kB
+tg_dating_db  | 2025-09-09 13:23:38.601 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:23:39.147 UTC [64] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.425 s, sync=0.026 s, total=0.547 s; sync files=3, longest=0.018 s, average=0.009 s; distance=23 kB, estimate=250 kB
+tg_dating_db  | 2025-09-09 13:28:38.193 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:28:38.950 UTC [64] LOG:  checkpoint complete: wrote 8 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.744 s, sync=0.005 s, total=0.758 s; sync files=5, longest=0.003 s, average=0.001 s; distance=14 kB, estimate=227 kB
+tg_dating_db  | 2025-09-09 13:33:38.462 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:33:39.041 UTC [64] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.424 s, sync=0.107 s, total=0.579 s; sync files=7, longest=0.055 s, average=0.016 s; distance=44 kB, estimate=208 kB
+tg_dating_db  | 2025-09-09 13:38:38.570 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:38:39.004 UTC [64] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.423 s, sync=0.003 s, total=0.435 s; sync files=4, longest=0.002 s, average=0.001 s; distance=10 kB, estimate=189 kB
+tg_dating_db  | 2025-09-09 13:43:38.084 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 13:43:39.988 UTC [64] LOG:  checkpoint complete: wrote 19 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.894 s, sync=0.005 s, total=1.904 s; sync files=13, longest=0.002 s, average=0.001 s; distance=51 kB, estimate=175 kB
+tg_dating_db  | 2025-09-09 14:08:38.712 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:08:39.179 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.142 s, sync=0.059 s, total=0.467 s; sync files=2, longest=0.045 s, average=0.030 s; distance=3 kB, estimate=158 kB
+tg_dating_db  | 2025-09-09 14:13:38.286 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:13:38.417 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.103 s, sync=0.006 s, total=0.132 s; sync files=2, longest=0.006 s, average=0.003 s; distance=5 kB, estimate=142 kB
+tg_dating_db  | 2025-09-09 14:18:38.490 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:18:40.507 UTC [64] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.589 s, sync=0.280 s, total=2.017 s; sync files=13, longest=0.113 s, average=0.022 s; distance=62 kB, estimate=134 kB
+tg_dating_db  | 2025-09-09 14:23:38.546 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:23:39.933 UTC [64] LOG:  checkpoint complete: wrote 14 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.367 s, sync=0.010 s, total=1.388 s; sync files=11, longest=0.006 s, average=0.001 s; distance=60 kB, estimate=127 kB
+tg_dating_db  | 2025-09-09 14:28:38.928 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:28:39.416 UTC [64] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.330 s, sync=0.109 s, total=0.489 s; sync files=3, longest=0.073 s, average=0.037 s; distance=5 kB, estimate=115 kB
+tg_dating_db  | 2025-09-09 14:38:38.923 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:38:40.016 UTC [64] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.080 s, sync=0.005 s, total=1.094 s; sync files=13, longest=0.002 s, average=0.001 s; distance=59 kB, estimate=109 kB
+tg_dating_db  | 2025-09-09 14:43:38.586 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:43:39.026 UTC [64] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.341 s, sync=0.024 s, total=0.440 s; sync files=3, longest=0.023 s, average=0.008 s; distance=8 kB, estimate=99 kB
+tg_dating_db  | 2025-09-09 14:48:38.056 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:48:38.200 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.112 s, sync=0.014 s, total=0.144 s; sync files=2, longest=0.013 s, average=0.007 s; distance=2 kB, estimate=89 kB
+tg_dating_db  | 2025-09-09 14:53:38.259 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 14:53:38.475 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.103 s, sync=0.056 s, total=0.216 s; sync files=2, longest=0.041 s, average=0.028 s; distance=3 kB, estimate=81 kB
+tg_dating_db  | 2025-09-09 15:03:38.554 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:03:38.923 UTC [64] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.319 s, sync=0.019 s, total=0.369 s; sync files=3, longest=0.019 s, average=0.007 s; distance=5 kB, estimate=73 kB
+tg_dating_db  | 2025-09-09 15:08:38.412 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:08:38.561 UTC [64] LOG:  checkpoint complete: wrote 7 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.132 s, sync=0.009 s, total=0.150 s; sync files=4, longest=0.004 s, average=0.003 s; distance=34 kB, estimate=69 kB
+tg_dating_db  | 2025-09-09 15:13:38.103 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:13:38.225 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.108 s, sync=0.004 s, total=0.123 s; sync files=2, longest=0.003 s, average=0.002 s; distance=8 kB, estimate=63 kB
+tg_dating_db  | 2025-09-09 15:18:38.237 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:18:39.298 UTC [64] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.046 s, sync=0.005 s, total=1.062 s; sync files=10, longest=0.003 s, average=0.001 s; distance=21 kB, estimate=59 kB
+tg_dating_db  | 2025-09-09 15:23:38.340 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:23:39.759 UTC [64] LOG:  checkpoint complete: wrote 11 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.071 s, sync=0.030 s, total=1.420 s; sync files=8, longest=0.011 s, average=0.004 s; distance=38 kB, estimate=57 kB
+tg_dating_db  | 2025-09-09 15:33:38.856 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:33:39.366 UTC [64] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.417 s, sync=0.054 s, total=0.511 s; sync files=4, longest=0.032 s, average=0.014 s; distance=6 kB, estimate=52 kB
+tg_dating_db  | 2025-09-09 15:38:38.320 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:38:39.477 UTC [64] LOG:  checkpoint complete: wrote 12 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.143 s, sync=0.004 s, total=1.158 s; sync files=9, longest=0.003 s, average=0.001 s; distance=62 kB, estimate=62 kB
+tg_dating_db  | 2025-09-09 15:43:38.991 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:43:45.988 UTC [64] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=6.940 s, sync=0.026 s, total=6.998 s; sync files=7, longest=0.025 s, average=0.004 s; distance=34 kB, estimate=59 kB
+tg_dating_db  | 2025-09-09 15:58:38.215 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 15:58:39.709 UTC [64] LOG:  checkpoint complete: wrote 15 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.479 s, sync=0.007 s, total=1.495 s; sync files=13, longest=0.003 s, average=0.001 s; distance=33 kB, estimate=56 kB
+tg_dating_db  | 2025-09-09 16:01:49.747 UTC [42273] ERROR:  column "last_message_id" of relation "users" does not exist at character 18
+tg_dating_db  | 2025-09-09 16:01:49.747 UTC [42273] STATEMENT:  UPDATE users SET last_message_id=$2 WHERE tg_id=$1
+tg_dating_db  | 2025-09-09 16:03:38.714 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 16:03:39.430 UTC [64] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.524 s, sync=0.023 s, total=0.716 s; sync files=4, longest=0.022 s, average=0.006 s; distance=36 kB, estimate=54 kB
+tg_dating_db  | 2025-09-09 16:08:38.786 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 16:08:45.086 UTC [64] LOG:  checkpoint complete: wrote 2 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=6.293 s, sync=0.003 s, total=6.301 s; sync files=2, longest=0.002 s, average=0.002 s; distance=5 kB, estimate=49 kB
+tg_dating_db  | 2025-09-09 17:43:52.426 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 17:43:53.981 UTC [64] LOG:  checkpoint complete: wrote 13 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.288 s, sync=0.197 s, total=1.555 s; sync files=11, longest=0.140 s, average=0.018 s; distance=28 kB, estimate=47 kB
+tg_dating_db  | 2025-09-09 17:48:52.374 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 17:48:52.902 UTC [64] LOG:  checkpoint complete: wrote 6 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.516 s, sync=0.005 s, total=0.529 s; sync files=4, longest=0.003 s, average=0.002 s; distance=32 kB, estimate=46 kB
+tg_dating_db  | 2025-09-09 18:03:53.030 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:03:53.382 UTC [64] LOG:  checkpoint complete: wrote 4 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.332 s, sync=0.003 s, total=0.353 s; sync files=3, longest=0.002 s, average=0.001 s; distance=9 kB, estimate=42 kB
+tg_dating_db  | 2025-09-09 18:13:53.290 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:13:54.315 UTC [64] LOG:  checkpoint complete: wrote 10 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.978 s, sync=0.030 s, total=1.026 s; sync files=10, longest=0.027 s, average=0.003 s; distance=25 kB, estimate=40 kB
+tg_dating_db  | 2025-09-09 18:18:53.811 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:18:53.943 UTC [64] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.416 s, sync=0.021 s, total=0.133 s; sync files=3, longest=0.020 s, average=0.007 s; distance=28 kB, estimate=39 kB
+tg_dating_db  | 2025-09-09 18:23:46.086 UTC [57187] ERROR:  relation "browse_seen" does not exist at character 1290
+tg_dating_db  | 2025-09-09 18:23:46.086 UTC [57187] STATEMENT:  
+tg_dating_db  | 	    WITH me AS (
+tg_dating_db  | 	      SELECT tg_id, geom, city_name
+tg_dating_db  | 	      FROM users WHERE tg_id = $1
+tg_dating_db  | 	    ),
+tg_dating_db  | 	    base AS (
+tg_dating_db  | 	      SELECT u.tg_id, u.name, u.age, u.city_name, u.about,
+tg_dating_db  | 	             -- главное фото: is_main или pos=1
+tg_dating_db  | 	             (SELECT p.file_id
+tg_dating_db  | 	              FROM photos p
+tg_dating_db  | 	              WHERE p.user_id = u.tg_id
+tg_dating_db  | 	              ORDER BY p.is_main DESC, p.pos ASC
+tg_dating_db  | 	              LIMIT 1) AS file_id,
+tg_dating_db  | 	             -- расстояние в км (если обе геоточки есть)
+tg_dating_db  | 	             CASE
+tg_dating_db  | 	               WHEN u.geom IS NOT NULL AND (SELECT geom FROM me) IS NOT NULL
+tg_dating_db  | 	                 THEN ST_DistanceSphere(u.geom, (SELECT geom FROM me)) / 1000.0
+tg_dating_db  | 	               ELSE NULL
+tg_dating_db  | 	             END AS dist_km
+tg_dating_db  | 	      FROM users u
+tg_dating_db  | 	      WHERE u.status = 'active'
+tg_dating_db  | 	        AND u.tg_id <> $1
+tg_dating_db  | 	        AND EXISTS (SELECT 1 FROM photos px WHERE px.user_id = u.tg_id)
+tg_dating_db  | 	        -- совместимость: я хочу его пол, а он хочет мой пол (или 'b')
+tg_dating_db  | 	        AND (
+tg_dating_db  | 	              ($2::bool = TRUE AND u.gender = 'm') OR
+tg_dating_db  | 	              ($3::bool = TRUE AND u.gender = 'f')
+tg_dating_db  | 	            )
+tg_dating_db  | 	        AND (
+tg_dating_db  | 	              (u.seek = 'b') OR
+tg_dating_db  | 	              (u.seek = 'm' AND $4::bool = TRUE) OR
+tg_dating_db  | 	              (u.seek = 'f' AND $5::bool = TRUE)
+tg_dating_db  | 	            )
+tg_dating_db  | 	        -- не показывать ранее показанных
+tg_dating_db  | 	        AND NOT EXISTS (
+tg_dating_db  | 	          SELECT 1 FROM browse_seen bs
+tg_dating_db  | 	          WHERE bs.user_id = $1 AND bs.seen_user_id = u.tg_id
+tg_dating_db  | 	        )
+tg_dating_db  | 	        -- геофильтр
+tg_dating_db  | 	        AND (
+tg_dating_db  | 	          -- оба с гео -> по радиусу
+tg_dating_db  | 	          (u.geom IS NOT NULL AND (SELECT has_geom FROM (SELECT geom IS NOT NULL AS has_geom FROM users WHERE tg_id=$1) x) = TRUE
+tg_dating_db  | 	             AND ST_DWithin(u.geom, (SELECT geom FROM me), $6 * 1000)
+tg_dating_db  | 	          )
+tg_dating_db  | 	          OR
+tg_dating_db  | 	          -- оба с городом и совпадает city_name
+tg_dating_db  | 	          (u.city_name IS NOT NULL AND (SELECT city_name FROM me) IS NOT NULL
+tg_dating_db  | 	             AND lower(u.city_name) = lower((SELECT city_name FROM me))
+tg_dating_db  | 	          )
+tg_dating_db  | 	        )
+tg_dating_db  | 	    )
+tg_dating_db  | 	    SELECT * FROM base
+tg_dating_db  | 	    ORDER BY random()
+tg_dating_db  | 	    LIMIT 1;
+tg_dating_db  | 	  
+tg_dating_db  | 2025-09-09 18:23:53.430 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:23:53.858 UTC [64] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.215 s, sync=0.021 s, total=0.428 s; sync files=3, longest=0.012 s, average=0.007 s; distance=4 kB, estimate=36 kB
+tg_dating_db  | 2025-09-09 18:26:43.434 UTC [57519] FATAL:  role "root" does not exist
+tg_dating_db  | 2025-09-09 18:33:53.847 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:34:04.158 UTC [64] LOG:  checkpoint complete: wrote 39 buffers (0.2%); 0 WAL file(s) added, 0 removed, 0 recycled; write=10.193 s, sync=0.093 s, total=10.311 s; sync files=35, longest=0.021 s, average=0.003 s; distance=163 kB, estimate=163 kB
+tg_dating_db  | 2025-09-09 18:38:53.958 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:38:55.778 UTC [64] LOG:  checkpoint complete: wrote 16 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.595 s, sync=0.178 s, total=1.821 s; sync files=11, longest=0.110 s, average=0.017 s; distance=17 kB, estimate=149 kB
+tg_dating_db  | 2025-09-09 18:43:53.338 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:43:54.756 UTC [64] LOG:  checkpoint complete: wrote 20 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.407 s, sync=0.005 s, total=1.418 s; sync files=13, longest=0.003 s, average=0.001 s; distance=83 kB, estimate=142 kB
+tg_dating_db  | 2025-09-09 18:48:53.183 UTC [64] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-09 18:48:54.716 UTC [64] LOG:  checkpoint complete: wrote 18 buffers (0.1%); 0 WAL file(s) added, 0 removed, 0 recycled; write=1.276 s, sync=0.214 s, total=1.533 s; sync files=13, longest=0.107 s, average=0.017 s; distance=77 kB, estimate=136 kB
+tg_dating_db  | 
+tg_dating_db  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+tg_dating_db  | 
+tg_dating_db  | 2025-09-10 08:01:26.150 UTC [1] LOG:  starting PostgreSQL 15.8 (Debian 15.8-1.pgdg110+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
+tg_dating_db  | 2025-09-10 08:01:26.151 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+tg_dating_db  | 2025-09-10 08:01:26.151 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+tg_dating_db  | 2025-09-10 08:01:26.162 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+tg_dating_db  | 2025-09-10 08:01:26.186 UTC [29] LOG:  database system was interrupted; last known up at 2025-09-09 18:48:54 UTC
+tg_dating_db  | 2025-09-10 08:01:26.415 UTC [29] LOG:  database system was not properly shut down; automatic recovery in progress
+tg_dating_db  | 2025-09-10 08:01:26.420 UTC [29] LOG:  redo starts at 0/24FB780
+tg_dating_db  | 2025-09-10 08:01:26.420 UTC [29] LOG:  invalid record length at 0/24FB868: wanted 24, got 0
+tg_dating_db  | 2025-09-10 08:01:26.420 UTC [29] LOG:  redo done at 0/24FB830 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+tg_dating_db  | 2025-09-10 08:01:26.427 UTC [27] LOG:  checkpoint starting: end-of-recovery immediate wait
+tg_dating_db  | 2025-09-10 08:01:26.447 UTC [27] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.004 s, sync=0.005 s, total=0.024 s; sync files=2, longest=0.004 s, average=0.003 s; distance=0 kB, estimate=0 kB
+tg_dating_db  | 2025-09-10 08:01:26.468 UTC [1] LOG:  database system is ready to accept connections
+tg_dating_db  | 
+tg_dating_db  | PostgreSQL Database directory appears to contain a database; Skipping initialization
+tg_dating_db  | 
+tg_dating_db  | 2025-09-12 16:53:32.108 UTC [1] LOG:  starting PostgreSQL 15.8 (Debian 15.8-1.pgdg110+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 10.2.1-6) 10.2.1 20210110, 64-bit
+tg_dating_db  | 2025-09-12 16:53:32.109 UTC [1] LOG:  listening on IPv4 address "0.0.0.0", port 5432
+tg_dating_db  | 2025-09-12 16:53:32.109 UTC [1] LOG:  listening on IPv6 address "::", port 5432
+tg_dating_db  | 2025-09-12 16:53:32.129 UTC [1] LOG:  listening on Unix socket "/var/run/postgresql/.s.PGSQL.5432"
+tg_dating_db  | 2025-09-12 16:53:32.164 UTC [29] LOG:  database system was interrupted; last known up at 2025-09-10 08:01:26 UTC
+tg_dating_db  | 2025-09-12 16:53:32.831 UTC [29] LOG:  database system was not properly shut down; automatic recovery in progress
+tg_dating_db  | 2025-09-12 16:53:32.836 UTC [29] LOG:  redo starts at 0/24FB8E0
+tg_dating_db  | 2025-09-12 16:53:32.836 UTC [29] LOG:  invalid record length at 0/24FB918: wanted 24, got 0
+tg_dating_db  | 2025-09-12 16:53:32.836 UTC [29] LOG:  redo done at 0/24FB8E0 system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+tg_dating_db  | 2025-09-12 16:53:32.847 UTC [27] LOG:  checkpoint starting: end-of-recovery immediate wait
+tg_dating_db  | 2025-09-12 16:53:32.872 UTC [27] LOG:  checkpoint complete: wrote 3 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.007 s, sync=0.004 s, total=0.032 s; sync files=2, longest=0.002 s, average=0.002 s; distance=0 kB, estimate=0 kB
+tg_dating_db  | 2025-09-12 16:53:32.910 UTC [1] LOG:  database system is ready to accept connections
+tg_dating_db  | 2025-09-12 17:13:32.078 UTC [27] LOG:  checkpoint starting: time
+tg_dating_db  | 2025-09-12 17:13:32.507 UTC [27] LOG:  checkpoint complete: wrote 5 buffers (0.0%); 0 WAL file(s) added, 0 removed, 0 recycled; write=0.419 s, sync=0.005 s, total=0.430 s; sync files=4, longest=0.003 s, average=0.002 s; distance=2 kB, estimate=2 kB
+### db env & initdb dir
+time="2025-09-12T20:24:28+03:00" level=warning msg="/home/rodrigo/projects/tg-dating-bot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+tguser / tgdb
+total 12
+drwxr-xr-x 2 1000 1000 4096 Sep  9 09:22 .
+drwxr-xr-x 1 root root 4096 Sep  9 09:23 ..
+-rw-r--r-- 1 1000 1000   89 Sep  9 09:22 001_extensions.sql
+### inspect
+{"Status":"healthy","FailingStreak":0,"Log":[{"Start":"2025-09-12T17:24:08.047510516Z","End":"2025-09-12T17:24:08.160039798Z","ExitCode":0,"Output":"/var/run/postgresql:5432 - accepting connections\n"},{"Start":"2025-09-12T17:24:12.971265155Z","End":"2025-09-12T17:24:13.078083554Z","ExitCode":0,"Output":"/var/run/postgresql:5432 - accepting connections\n"},{"Start":"2025-09-12T17:24:17.891707361Z","End":"2025-09-12T17:24:18.04240146Z","ExitCode":0,"Output":"/var/run/postgresql:5432 - accepting connections\n"},{"Start":"2025-09-12T17:24:22.853817799Z","End":"2025-09-12T17:24:22.986853474Z","ExitCode":0,"Output":"/var/run/postgresql:5432 - accepting connections\n"},{"Start":"2025-09-12T17:24:27.798188047Z","End":"2025-09-12T17:24:27.943250659Z","ExitCode":0,"Output":"/var/run/postgresql:5432 - accepting connections\n"}]}
+{"5432/tcp":[{"HostIp":"0.0.0.0","HostPort":"5432"},{"HostIp":"::","HostPort":"5432"}]}

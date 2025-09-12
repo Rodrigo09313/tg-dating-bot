@@ -1,0 +1,39 @@
+.env
+.env copy
+.env copy.example
+.env.example
+.gitignore
+HELP.md
+db/init/001_extensions.sql
+db/schema.sql
+diag/find.txt
+diag/summary.txt
+docker-compose.yml
+docker/initdb/001_extensions.sql
+docker/initdb/010_schema.sql
+docker/initdb/020_contact_core.sql
+eval "$(ssh-agent -s)"
+eval "$(ssh-agent -s)".pub
+migrations/001_init.sql
+migrations/002_indexes.sql
+package-lock.json
+package.json
+scripts/collect-diag.sh
+src/bot/browse.ts
+src/bot/helpers.ts
+src/bot/menu.ts
+src/bot/photo.ts
+src/bot/profile.ts
+src/bot/registration.ts
+src/config.ts
+src/db.ts
+src/index.ts
+src/lib/geocode.ts
+src/lib/hideReply.ts
+src/router/callback.ts
+src/tools/migrate.ts
+src/types.ts
+src/ui/buttons.ts
+src/ui/cb.ts
+src/ui/text.ts
+tsconfig.json

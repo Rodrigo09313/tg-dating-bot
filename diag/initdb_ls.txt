@@ -1,0 +1,6 @@
+total 20
+drwxr-xr-x 2 rodrigo rodrigo 4096 Sep  9 21:55 .
+drwxr-xr-x 3 rodrigo rodrigo 4096 Sep  9 21:43 ..
+-rw-r--r-- 1 rodrigo rodrigo   77 Sep  9 21:55 001_extensions.sql
+-rw-r--r-- 1 rodrigo rodrigo  516 Sep  9 21:55 010_schema.sql
+-rw-r--r-- 1 rodrigo rodrigo 1406 Sep  9 21:55 020_contact_core.sql

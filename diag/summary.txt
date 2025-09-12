@@ -1,0 +1,92 @@
+### TREE
+Fri Sep 12 20:24:27 MSK 2025
+----- docker-compose.yml
+version: "3.8"
+
+services:
+  db:
+    image: postgis/postgis:15-3.4
+    container_name: tg_dating_db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d
+
+volumes:
+  pgdata: {}
+
+----- .env.example
+# === Telegram ===
+TELEGRAM_TOKEN=__put-your-bot-token-here__
+
+# === Геокодер ===
+GEOCODER_PROVIDER=yandex
+YANDEX_GEOCODER_KEY=__put-yandex-key-here__
+GEOCODER_EMAIL=you@example.com
+
+# === БД (локальная через Docker) ===
+PGHOST=127.0.0.1
+PGPORT=5432
+PGUSER=tguser
+PGPASSWORD=tgpass
+PGDATABASE=tgdb
+DATABASE_URL=postgres://tguser:tgpass@127.0.0.1:5432/tgdb
+
+# === Настройки бота ===
+SCREEN_TTL_MS=300000
+BROWSE_RADIUS_KM=50
+
+----- tsconfig.json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020"],
+    "module": "CommonJS",
+    "outDir": "dist",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "include": ["src"]
+}
+
+----- package.json
+{
+  "name": "tg-dating-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "db:migrate": "ts-node-dev --transpile-only src/tools/migrate.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "node-telegram-bot-api": "^0.66.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.1",
+    "@types/node-telegram-bot-api": "^0.64.10",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  }
+}

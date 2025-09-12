@@ -1,0 +1,21 @@
+### \dx / \dt
+time="2025-09-12T20:24:28+03:00" level=warning msg="/home/rodrigo/projects/tg-dating-bot/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion"
+                                     List of installed extensions
+       Name       | Version |   Schema   |                        Description                         
+------------------+---------+------------+------------------------------------------------------------
+ plpgsql          | 1.0     | pg_catalog | PL/pgSQL procedural language
+ postgis          | 3.4.3   | public     | PostGIS geometry and geography spatial types and functions
+ postgis_topology | 3.4.3   | topology   | PostGIS topology spatial types and functions
+(3 rows)
+
+              List of relations
+  Schema  |      Name       | Type  | Owner  
+----------+-----------------+-------+--------
+ public   | browse_seen     | table | tguser
+ public   | photos          | table | tguser
+ public   | spatial_ref_sys | table | tguser
+ public   | users           | table | tguser
+ topology | layer           | table | tguser
+ topology | topology        | table | tguser
+(6 rows)
+
