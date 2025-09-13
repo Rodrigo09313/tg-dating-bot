@@ -5,7 +5,12 @@
 import TelegramBot from "node-telegram-bot-api";
 import { query } from "../db";
 import { DbUser, sendScreen, setState } from "./helpers";
-import { kb } from "../ui/buttons";
+import { Keyboards } from "../ui/keyboards";
+import { logger } from "../lib/logger";
+import { ErrorHandler } from "../lib/errorHandler";
+import { TXT } from "../ui/text";
+import { mkCb } from "../ui/cb";
+import { CB } from "../types";
 
 // Конфиг по умолчанию
 const DEFAULT_RADIUS_KM = Number(process.env.BROWSE_RADIUS_KM ?? 50); // радиус отбора при наличии гео
@@ -117,9 +122,9 @@ async function pickCandidate(currentId: number, radiusKm: number): Promise<Candi
 }
 
 // Сформировать подпись карточки
-function buildCardCaption(c: CandidateRow): string {
+export function buildCardCaption(c: CandidateRow): string {
   const parts: string[] = [];
-  const header = `${c.name ?? "Без имени"}${c.age ? ", " + c.age : ""}${c.city_name ? ", " + c.city_name : ""}`;
+  const header = `${c.name ?? TXT.browse.noName}${c.age ? ", " + c.age : ""}${c.city_name ? ", " + c.city_name : ""}`;
   parts.push(`<b>${header}</b>`);
   if (c.about) parts.push(c.about.slice(0, 300));
 
@@ -130,6 +135,18 @@ function buildCardCaption(c: CandidateRow): string {
   return parts.join("\n");
 }
 
+// Получить все фото кандидата
+export async function getCandidatePhotos(candidateId: number): Promise<string[]> {
+  const r = await query<{ file_id: string }>(
+    `SELECT file_id
+     FROM photos
+     WHERE user_id = $1
+     ORDER BY is_main DESC, pos ASC, id ASC
+     LIMIT 5`, [candidateId]
+  );
+  return r.rows.map((x: { file_id: string }) => x.file_id);
+}
+
 // Показать следующую карточку (или сообщение "никого рядом")
 export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbUser) {
   // переводим в состояние browse/browse_card
@@ -137,16 +154,38 @@ export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbU
 
   const cand = await pickCandidate(chatId, DEFAULT_RADIUS_KM);
   if (!cand) {
-    await sendScreen(bot, chatId, user, {
-      text: [
-        "Пока анкет поблизости не нашлось.",
-        "Попробуй позже или расширь радиус (по умолчанию " + DEFAULT_RADIUS_KM + " км)."
-      ].join("\n"),
-      keyboard: [
-        [{ text: "🔄 Ещё раз", callback_data: "brw:next" }],
-        [{ text: "🏠 В меню",  callback_data: "sys:menu" }],
-      ]
-    });
+    // Если нет кандидатов, сбрасываем просмотренные и ищем снова
+    await query("DELETE FROM browse_seen WHERE user_id = $1", [chatId]);
+    
+    // Пытаемся найти кандидата снова
+    const newCand = await pickCandidate(chatId, DEFAULT_RADIUS_KM);
+    if (!newCand) {
+      // Если и после сброса никого нет - показываем сообщение
+      await sendScreen(bot, chatId, user, {
+        text: [
+          TXT.browse.noResults,
+          TXT.browse.tryLater.replace('{radius}', DEFAULT_RADIUS_KM.toString())
+        ].join("\n"),
+        keyboard: [
+          [{ text: TXT.browse.tryAgain, callback_data: mkCb(CB.BRW, "next") }],
+          [{ text: TXT.browse.backToMenu, callback_data: mkCb(CB.SYS, "menu") }],
+        ]
+      });
+      return;
+    }
+    
+    // Используем найденного кандидата
+    const finalCand = newCand;
+    // Помечаем как просмотренного
+    await query(
+      `INSERT INTO browse_seen (user_id, seen_user_id, ts)
+       VALUES ($1, $2, now())
+       ON CONFLICT DO NOTHING`,
+      [chatId, finalCand.tg_id]
+    );
+
+    // Показываем карточку с каруселью фото
+    await showBrowseCard(bot, chatId, user, finalCand);
     return;
   }
 
@@ -158,12 +197,49 @@ export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbU
     [chatId, cand.tg_id]
   );
 
-  // показываем карточку
-  const caption = buildCardCaption(cand);
-  await sendScreen(bot, chatId, user, {
-    photoFileId: cand.file_id || undefined,
-    text: cand.file_id ? undefined : caption, // если фото нет (не должно), уйдём текстом
-    caption: cand.file_id ? caption : undefined,
-    keyboard: kb.browseCard(cand.tg_id),
-  });
+  // показываем карточку с каруселью фото
+  await showBrowseCard(bot, chatId, user, cand);
 }
+
+// Показать карточку кандидата с каруселью фото
+async function showBrowseCard(bot: TelegramBot, chatId: number, user: DbUser, candidate: CandidateRow) {
+  const photos = await getCandidatePhotos(candidate.tg_id);
+  const caption = buildCardCaption(candidate);
+
+  if (photos.length > 0) {
+    const currentIndex = 0;
+    await sendScreen(bot, chatId, user, {
+      photoFileId: photos[currentIndex],
+      caption,
+      keyboard: Keyboards.browseCardWithNav(candidate.tg_id, photos.length, currentIndex),
+    });
+  } else {
+    await sendScreen(bot, chatId, user, { 
+      text: caption, 
+      keyboard: Keyboards.browseCard(candidate.tg_id) 
+    });
+  }
+}
+
+// Получить ID текущего кандидата для навигации по фото
+export async function getCurrentBrowseCandidate(chatId: number): Promise<number | null> {
+  try {
+    const result = await query<{ seen_user_id: number }>(
+      `SELECT seen_user_id 
+       FROM browse_seen 
+       WHERE user_id = $1 
+       ORDER BY ts DESC 
+       LIMIT 1`,
+      [chatId]
+    );
+    return result.rows[0]?.seen_user_id || null;
+  } catch (error) {
+    logger.error("Failed to get current browse candidate", {
+      action: 'get_current_browse_candidate',
+      chatId,
+      error: error as Error
+    });
+    return null;
+  }
+}
+

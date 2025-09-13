@@ -13,7 +13,7 @@ export async function hideReplyKeyboard(bot: TelegramBot, chatId: number) {
       disable_notification: true,
     });
     // удаляем мгновенно, чтобы сохранить "один живой экран"
-    await bot.deleteMessage(chatId, String(m.message_id)).catch(() => {});
+    await bot.deleteMessage(chatId, m.message_id).catch(() => {});
   } catch (e) {
     // проглатываем — скрытие клавиатуры — best-effort
   }

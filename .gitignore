@@ -18,3 +18,4 @@ coverage/
 # Docker artifacts
 docker/*.bak
 *.DS_Store
+*.code-workspace

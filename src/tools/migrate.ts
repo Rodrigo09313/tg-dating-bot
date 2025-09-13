@@ -23,7 +23,7 @@ async function main() {
   const files = fs.readdirSync(dir).filter(f => f.endsWith(".sql")).sort();
 
   const appliedRes = await client.query<{ filename: string }>(`SELECT filename FROM schema_migrations;`);
-  const applied = new Set(appliedRes.rows.map(r => r.filename));
+  const applied = new Set(appliedRes.rows.map((r: { filename: string }) => r.filename));
 
   for (const file of files) {
     if (applied.has(file)) { console.log(`Skip: ${file}`); continue; }

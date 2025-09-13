@@ -3,7 +3,7 @@
 import TelegramBot from "node-telegram-bot-api";
 import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
-import { kb } from "../ui/buttons";
+import { Keyboards } from "../ui/keyboards";
 
 function esc(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -18,7 +18,7 @@ export async function getAllPhotoIds(userId: number): Promise<string[]> {
      ORDER BY is_main DESC, pos ASC, id ASC
      LIMIT 3`, [userId]
   );
-  return r.rows.map(x => x.file_id);
+  return r.rows.map((x: { file_id: string }) => x.file_id);
 }
 
 // Главное фото (с учётом is_main)
@@ -54,9 +54,9 @@ export async function showProfile(bot: TelegramBot, chatId: number, user: DbUser
     await sendScreen(bot, chatId, user, {
       photoFileId: photos[currentIndex],
       caption,
-      keyboard: kb.profileWithNav(photos.length, currentIndex),
+      keyboard: Keyboards.profileWithNav(photos.length, currentIndex),
     });
   } else {
-    await sendScreen(bot, chatId, user, { text: caption, keyboard: kb.profile() });
+    await sendScreen(bot, chatId, user, { text: caption, keyboard: Keyboards.profile() });
   }
 }

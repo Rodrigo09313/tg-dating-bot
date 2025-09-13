@@ -2,11 +2,11 @@
 // Безопасная работа с фото: транзакция + advisory lock на user_id (BIGINT).
 // Фикс: используем одноаргументный pg_advisory_xact_lock(bigint), а не (int,int).
 
-import TelegramBot from "node-telegram-bot-api";
+import TelegramBot, { PhotoSize } from "node-telegram-bot-api";
 import { query, withTx } from "../db";
 
 // Берём самый крупный вариант из набора
-function pickLargestPhoto(variants: TelegramBot.PhotoSize[]): TelegramBot.PhotoSize {
+function pickLargestPhoto(variants: PhotoSize[]): PhotoSize {
   return variants.slice().sort((a, b) => {
     const areaA = (a.width || 0) * (a.height || 0);
     const areaB = (b.width || 0) * (b.height || 0);
@@ -30,7 +30,7 @@ export async function addPhotoSafely(
 
     const cntRes = await client.query<{ c: number }>("SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1", [userId]);
     const count = cntRes.rows[0]?.c ?? 0;
-    if (count >= 3) throw new Error("LIMIT_REACHED");
+    if (count >= 5) throw new Error("LIMIT_REACHED");
 
     const maxRes = await client.query<{ m: number }>("SELECT COALESCE(MAX(pos),0) AS m FROM photos WHERE user_id=$1", [userId]);
     const nextPos = (maxRes.rows[0]?.m ?? 0) + 1;
@@ -48,7 +48,23 @@ export async function addPhotoSafely(
 }
 
 /**
- * Импорт фото из профиля Telegram (до 3 шт), с опцией replace.
+ * Проверить наличие фото в профиле Telegram
+ */
+export async function checkTelegramProfilePhotos(
+  bot: TelegramBot,
+  userId: number
+): Promise<{ hasPhotos: boolean; count: number }> {
+  try {
+    const prof = await bot.getUserProfilePhotos(userId, { limit: 100 });
+    const groups = prof.photos || [];
+    return { hasPhotos: groups.length > 0, count: groups.length };
+  } catch (error) {
+    return { hasPhotos: false, count: 0 };
+  }
+}
+
+/**
+ * Импорт фото из профиля Telegram (до 5 шт), с опцией replace.
  * Также под BIGINT-локом.
  */
 export async function importPhotosFromTelegramProfile(
@@ -56,7 +72,7 @@ export async function importPhotosFromTelegramProfile(
   userId: number,
   opts: { replace?: boolean; limit?: number } = {}
 ): Promise<number> {
-  const limit = Math.max(1, Math.min(3, opts.limit ?? 3));
+  const limit = Math.max(1, Math.min(5, opts.limit ?? 5));
   const prof = await bot.getUserProfilePhotos(userId, { limit: 100 });
   const groups = prof.photos || [];
   if (!groups.length) return 0;
@@ -75,7 +91,7 @@ export async function importPhotosFromTelegramProfile(
 
     let inserted = 0;
     for (const group of groups) {
-      if (inserted >= limit || count >= 3) break;
+      if (inserted >= limit || count >= 5) break;
 
       const best = pickLargestPhoto(group);
       const exists = await client.query(
@@ -113,4 +129,85 @@ export async function importPhotosFromTelegramProfile(
 
     return inserted;
   });
+}
+
+/**
+ * Получить все фото пользователя для карусели
+ */
+export async function getAllUserPhotos(userId: number): Promise<string[]> {
+  const r = await query<{ file_id: string }>(
+    `SELECT file_id
+     FROM photos
+     WHERE user_id = $1
+     ORDER BY is_main DESC, pos ASC, id ASC`,
+    [userId]
+  );
+  return r.rows.map((x: { file_id: string }) => x.file_id);
+}
+
+/**
+ * Получить фото из профиля Telegram для предпросмотра (без импорта в базу)
+ */
+export async function getTelegramProfilePhotosForPreview(
+  bot: TelegramBot,
+  userId: number,
+  limit: number = 5
+): Promise<string[]> {
+  try {
+    const prof = await bot.getUserProfilePhotos(userId, { limit: 100 });
+    const groups = prof.photos || [];
+    if (!groups.length) return [];
+
+    const photos: string[] = [];
+    for (const group of groups) {
+      if (photos.length >= limit) break;
+      const best = pickLargestPhoto(group);
+      photos.push(best.file_id);
+    }
+    return photos;
+  } catch (error) {
+    return [];
+  }
+}
+
+/**
+ * Валидация загруженного фото
+ */
+export function validatePhoto(photo: PhotoSize): { valid: boolean; error?: string } {
+  // Проверяем размер файла (максимум 5MB)
+  const maxSize = 5 * 1024 * 1024; // 5MB в байтах
+  if (photo.file_size && photo.file_size > maxSize) {
+    return { valid: false, error: "Размер фото слишком большой. Максимум 5MB." };
+  }
+
+  // Проверяем размеры изображения
+  if (photo.width && photo.height) {
+    const minSize = 100; // Минимальный размер
+    const maxSize = 4096; // Максимальный размер
+    if (photo.width < minSize || photo.height < minSize) {
+      return { valid: false, error: "Фото слишком маленькое. Минимум 100x100 пикселей." };
+    }
+    if (photo.width > maxSize || photo.height > maxSize) {
+      return { valid: false, error: "Фото слишком большое. Максимум 4096x4096 пикселей." };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Получить лучший размер фото из массива
+ */
+export function getBestPhotoSize(photos: PhotoSize[]): PhotoSize | null {
+  if (!photos || photos.length === 0) return null;
+  
+  // Сортируем по качеству: сначала по площади, потом по размеру файла
+  const sorted = photos.slice().sort((a, b) => {
+    const areaA = (a.width || 0) * (a.height || 0);
+    const areaB = (b.width || 0) * (b.height || 0);
+    if (areaA !== areaB) return areaB - areaA;
+    return (b.file_size || 0) - (a.file_size || 0);
+  });
+  
+  return sorted[0];
 }

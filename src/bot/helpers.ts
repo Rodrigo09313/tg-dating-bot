@@ -54,6 +54,7 @@ export async function sendScreen(
     parse_mode?: "HTML" | "Markdown" | "MarkdownV2" | string;
     disable_web_page_preview?: boolean;         // для текстовых сообщений
     keyboard?: InlineKeyboardButton[][];
+    reply_markup?: any;                         // для обычных клавиатур
   }
 ) {
   const o = { ...(opts || {}) };
@@ -73,10 +74,10 @@ export async function sendScreen(
   // Один живой экран: удаляем предыдущее сообщение бота, если помним его id.
   const lastId = user?.last_screen_msg_id;
   if (lastId) {
-    try { await bot.deleteMessage(chatId, String(lastId)); } catch {}
+    try { await bot.deleteMessage(chatId, lastId); } catch {}
   }
 
-  const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : undefined;
+  const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : o.reply_markup;
 
   let sent:
     | TelegramBot.Message

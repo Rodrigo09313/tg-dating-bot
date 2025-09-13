@@ -3,16 +3,13 @@
 
 import TelegramBot from "node-telegram-bot-api";
 import { DbUser, sendScreen, setState } from "./helpers";
+import { Keyboards } from "../ui/keyboards";
+import { TXT } from "../ui/text";
 
 export async function showMainMenu(bot: TelegramBot, chatId: number, user: DbUser) {
   await setState(chatId, "idle");
-  const text = "✨ Выбери действие:";
-  const keyboard = [
-    [{ text: "🎲 Чат рулетка", callback_data: "rl:find" }],
-    [{ text: "💞 Знакомства", callback_data: "brw:start" }],
-    [{ text: "👤 Профиль", callback_data: "prf:open" }],
-    [{ text: "❓ Помощь", callback_data: "sys:help" }]
-  ];
+  const text = TXT.menu.mainTitle;
+  const keyboard = Keyboards.mainMenu();
   await sendScreen(bot, chatId, user, {
     text,
     keyboard,
@@ -23,27 +20,18 @@ export async function showMainMenu(bot: TelegramBot, chatId: number, user: DbUse
 
 export async function showHelp(bot: TelegramBot, chatId: number, user: DbUser) {
   const text = [
-    "💫 <b>Справка по боту</b>",
+    TXT.menu.helpTitle,
     "",
-    "📋 <b>Регистрация:</b>",
-    "Заполни возраст, пол, город и добавь фото",
+    TXT.menu.helpRegistration,
     "",
-    "👥 <b>Знакомства:</b>", 
-    "Смотри анкеты и отправляй запросы",
+    TXT.menu.helpDating,
     "",
-    "🎲 <b>Чат-рулетка:</b>",
-    "Анонимный чат с ближайшим пользователем",
+    TXT.menu.helpRoulette,
     "",
-    "📨 <b>Контакты:</b>",
-    "Управляй запросами и контактами"
+    TXT.menu.helpContacts
   ].join("\n");
   
-  const keyboard = [
-    [{ text: "🎲 Чат рулетка", callback_data: "rl:find" }],
-    [{ text: "💞 Знакомства", callback_data: "brw:start" }],
-    [{ text: "👤 Профиль", callback_data: "prf:open" }],
-    [{ text: "🏠 Меню", callback_data: "sys:menu" }]
-  ];
+  const keyboard = Keyboards.mainMenu();
   
   await sendScreen(bot, chatId, user, {
     text,
