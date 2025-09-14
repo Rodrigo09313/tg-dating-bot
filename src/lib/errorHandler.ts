@@ -1,16 +1,16 @@
 // src/lib/errorHandler.ts
 // Централизованная обработка ошибок с уведомлениями администратора
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { logger } from "./logger";
 
 export class ErrorHandler {
-  private static bot: TelegramBot | null = null;
+  private static bot: Telegraf<Context> | null = null;
   private static adminChatId: string | null = null;
   private static errorCounts = new Map<string, number>();
   private static readonly MAX_ERRORS_PER_MINUTE = 10;
 
-  static initialize(bot: TelegramBot, adminChatId?: string): void {
+  static initialize(bot: Telegraf<Context>, adminChatId?: string): void {
     this.bot = bot;
     this.adminChatId = adminChatId || process.env.ADMIN_CHAT_ID || null;
   }
@@ -125,7 +125,7 @@ export class ErrorHandler {
         `<code>${error.stack?.substring(0, 1000)}...</code>`
       ].filter(Boolean).join('\n');
 
-      await this.bot.sendMessage(this.adminChatId, message, {
+      await this.bot.telegram.sendMessage(this.adminChatId, message, {
         parse_mode: 'HTML',
         disable_web_page_preview: true
       });

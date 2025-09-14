@@ -1,14 +1,14 @@
 // src/bot/roulette.ts
 // Чат-рулетка - анонимный чат с ближайшим пользователем
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen, setState } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
 import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
 
-export async function startRoulette(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function startRoulette(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   try {
     logger.userAction('start_roulette', chatId, chatId);
     
@@ -51,7 +51,7 @@ export async function startRoulette(bot: TelegramBot, chatId: number, user: DbUs
   }
 }
 
-export async function stopRoulette(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function stopRoulette(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   try {
     logger.userAction('stop_roulette', chatId, chatId);
     
@@ -77,7 +77,7 @@ export async function stopRoulette(bot: TelegramBot, chatId: number, user: DbUse
   }
 }
 
-async function tryMatchPair(bot: TelegramBot, chatId: number, user: DbUser) {
+async function tryMatchPair(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   try {
     // Ищем подходящего собеседника
     const match = await query<{

@@ -1,7 +1,6 @@
 // src/ui/keyboards.ts
 // Единая система управления всеми клавиатурами и кнопками
 
-import { InlineKeyboardButton } from "node-telegram-bot-api";
 import { mkCb } from "./cb";
 import { CB } from "../types";
 
@@ -58,6 +57,8 @@ export const BUTTONS = {
 } as const;
 
 // ===== ОСНОВНЫЕ КЛАВИАТУРЫ =====
+export type InlineKeyboardButton = { text: string; callback_data: string };
+
 export const Keyboards = {
   // Главное меню
   mainMenu(): InlineKeyboardButton[][] {

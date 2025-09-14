@@ -1,17 +1,17 @@
 // src/bot/reports.ts
 // Система жалоб и модерации
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
 import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
 
 export async function reportUser(
-  bot: TelegramBot, 
-  chatId: number, 
-  user: DbUser, 
-  targetId: number, 
+  bot: Telegraf<Context>,
+  chatId: number,
+  user: DbUser,
+  targetId: number,
   context: 'browse' | 'request'
 ) {
   try {

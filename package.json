@@ -14,12 +14,11 @@
   "description": "",
   "dependencies": {
     "dotenv": "^17.2.2",
-    "node-telegram-bot-api": "^0.66.0",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "telegraf": "^4.15.0"
   },
   "devDependencies": {
     "@types/node": "^24.3.1",
-    "@types/node-telegram-bot-api": "^0.64.10",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
   }

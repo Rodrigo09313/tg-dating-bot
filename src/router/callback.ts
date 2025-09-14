@@ -1,5 +1,6 @@
 // src/router/callback.ts
-import TelegramBot, { CallbackQuery } from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
+type CallbackQuery = any;
 import { parseCb } from "../ui/cb";
 import { ensureUser, isScreenExpired, sendScreen } from "../bot/helpers";
 import { showHelp, showMainMenu } from "../bot/menu";
@@ -20,8 +21,8 @@ import { Keyboards } from "../ui/keyboards";
 import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
 
-async function ack(bot: TelegramBot, id: string, text?: string) {
-  try { await bot.answerCallbackQuery(id, text ? { text, show_alert: false } : undefined); } catch {}
+async function ack(bot: Telegraf<Context>, id: string, text?: string) {
+  try { await bot.telegram.answerCbQuery(id, text ? { text, show_alert: false } : undefined); } catch {}
 }
 
 function importFailText(): string {
@@ -34,7 +35,7 @@ function importFailText(): string {
   ].join("\n");
 }
 
-export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
+export async function handleCallback(bot: Telegraf<Context>, cq: CallbackQuery) {
   try {
     const chatId = cq.message?.chat.id;
     if (!chatId || !cq.data) { 
@@ -220,7 +221,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       
       // Используем editMessageMedia для обновления только фото
       try {
-        await bot.editMessageMedia({
+        await bot.telegram.editMessageMedia({
           type: "photo",
           media: photos[safeIdx],
           caption,
@@ -332,7 +333,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       
       // Используем editMessageMedia для обновления только фото
       try {
-        await bot.editMessageMedia({
+        await bot.telegram.editMessageMedia({
           type: "photo",
           media: photos[safeIdx],
           caption,

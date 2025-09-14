@@ -2,7 +2,7 @@
 // Показ следующей анкеты по правилам: совместимость, город/радиус, исключить уже показанных.
 // Показываем главное фото, подпись с расстоянием (если есть), кнопки — из kb.browseCard.
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen, setState } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
@@ -148,7 +148,7 @@ export async function getCandidatePhotos(candidateId: number): Promise<string[]>
 }
 
 // Показать следующую карточку (или сообщение "никого рядом")
-export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function browseShowNext(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   // переводим в состояние browse/browse_card
   await setState(chatId, "browse_card");
 
@@ -202,7 +202,7 @@ export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbU
 }
 
 // Показать карточку кандидата с каруселью фото
-async function showBrowseCard(bot: TelegramBot, chatId: number, user: DbUser, candidate: CandidateRow) {
+async function showBrowseCard(bot: Telegraf<Context>, chatId: number, user: DbUser, candidate: CandidateRow) {
   const photos = await getCandidatePhotos(candidate.tg_id);
   const caption = buildCardCaption(candidate);
 

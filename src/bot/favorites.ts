@@ -1,7 +1,7 @@
 // src/bot/favorites.ts
 // Управление избранными пользователями
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
@@ -10,7 +10,7 @@ import { ErrorHandler } from "../lib/errorHandler";
 import { mkCb } from "../ui/cb";
 import { CB } from "../types";
 
-export async function showFavoritesList(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function showFavoritesList(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   try {
     logger.userAction('show_favorites_list', chatId, chatId);
     
@@ -67,7 +67,7 @@ export async function showFavoritesList(bot: TelegramBot, chatId: number, user: 
   }
 }
 
-export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbUser, targetId: number) {
+export async function addToFavorites(bot: Telegraf<Context>, chatId: number, user: DbUser, targetId: number) {
   try {
     logger.userAction('add_to_favorites', chatId, chatId, { targetId });
     
@@ -97,7 +97,7 @@ export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbU
   }
 }
 
-export async function removeFromFavorites(bot: TelegramBot, chatId: number, user: DbUser, targetId: number) {
+export async function removeFromFavorites(bot: Telegraf<Context>, chatId: number, user: DbUser, targetId: number) {
   try {
     logger.userAction('remove_from_favorites', chatId, chatId, { targetId });
     

@@ -2,7 +2,7 @@
 // Вспомогательные утилиты бота: ensureUser, setState, sendScreen (один живой экран).
 // Код безопасен к "пустому тексту": никогда не пошлём пустой message/caption.
 
-import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api";
+import { Telegraf, Context, Markup } from 'telegraf';
 import { query } from "../db";
 
 // Тип пользователя как мы его обычно читаем из БД.
@@ -43,18 +43,20 @@ export async function setState(chatId: number, state: string | null) {
 
 // Унифицированная отправка экрана: удаляет старый экран, шлёт новый, запоминает message_id.
 // Поддерживает текст ИЛИ фото с подписью и inline-кнопки.
+export type InlineButton = { text: string; callback_data: string };
+
 export async function sendScreen(
-  bot: TelegramBot,
+  bot: Telegraf<Context>,
   chatId: number,
   user: DbUser,
   opts: {
-    text?: string;                              // текст сообщения (если без фото)
-    photoFileId?: string;                       // file_id фото (если отправляем фото)
-    caption?: string;                           // подпись к фото (если отправляем фото)
+    text?: string;
+    photoFileId?: string;
+    caption?: string;
     parse_mode?: "HTML" | "Markdown" | "MarkdownV2" | string;
-    disable_web_page_preview?: boolean;         // для текстовых сообщений
-    keyboard?: InlineKeyboardButton[][];
-    reply_markup?: any;                         // для обычных клавиатур
+    disable_web_page_preview?: boolean;
+    keyboard?: InlineButton[][];
+    reply_markup?: any;
   }
 ) {
   const o = { ...(opts || {}) };
@@ -74,33 +76,34 @@ export async function sendScreen(
   // Один живой экран: удаляем предыдущее сообщение бота, если помним его id.
   const lastId = user?.last_screen_msg_id;
   if (lastId) {
-    try { await bot.deleteMessage(chatId, lastId); } catch {}
+    try { await bot.telegram.deleteMessage(chatId, lastId); } catch {}
   }
 
-  const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : o.reply_markup;
+  const reply_markup = o.keyboard
+    ? Markup.inlineKeyboard(
+        o.keyboard.map(row => row.map(btn => Markup.button.callback(btn.text, btn.callback_data)))
+      ).reply_markup
+    : o.reply_markup;
 
-  let sent:
-    | TelegramBot.Message
-    | TelegramBot.MessageId
-    | (TelegramBot.Message & { message_id: number });
+  let sent: any;
 
   if (hasPhoto) {
-    sent = await bot.sendPhoto(chatId, o.photoFileId as string, {
+    sent = await bot.telegram.sendPhoto(chatId, o.photoFileId as string, {
       caption: hasCaption ? o.caption : (o.text || undefined),
-      parse_mode: o.parse_mode || "HTML",
+      parse_mode: o.parse_mode || 'HTML',
       reply_markup,
       disable_notification: true,
-    } as any);
+    });
   } else {
-    sent = await bot.sendMessage(chatId, (o.text as string), {
-      parse_mode: o.parse_mode || "HTML",
+    sent = await bot.telegram.sendMessage(chatId, o.text as string, {
+      parse_mode: o.parse_mode || 'HTML',
       reply_markup,
       disable_web_page_preview: o.disable_web_page_preview ?? true,
       disable_notification: true,
-    } as any);
+    });
   }
 
-  const msgId = (sent as TelegramBot.Message).message_id ?? (sent as any).message_id;
+  const msgId = (sent as any).message_id;
 
   // Запоминаем id экрана — чтобы удалить при следующем показе.
   try {
@@ -117,7 +120,7 @@ export async function sendScreen(
     // Не блокируем UX проблемами записи вспомогательных полей.
   }
 
-  return sent as TelegramBot.Message;
+  return sent as any;
 }
 
 

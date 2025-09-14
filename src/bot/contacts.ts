@@ -1,7 +1,7 @@
 // src/bot/contacts.ts
 // Управление запросами на контакты
 
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
@@ -10,7 +10,7 @@ import { ErrorHandler } from "../lib/errorHandler";
 import { mkCb } from "../ui/cb";
 import { CB } from "../types";
 
-export async function showContactRequestsList(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function showContactRequestsList(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   try {
     logger.userAction('show_contact_requests_list', chatId, chatId);
     
@@ -70,7 +70,7 @@ export async function showContactRequestsList(bot: TelegramBot, chatId: number, 
   }
 }
 
-export async function sendContactRequest(bot: TelegramBot, chatId: number, user: DbUser, targetId: number) {
+export async function sendContactRequest(bot: Telegraf<Context>, chatId: number, user: DbUser, targetId: number) {
   try {
     logger.userAction('send_contact_request', chatId, chatId, { targetId });
     
@@ -110,7 +110,7 @@ export async function sendContactRequest(bot: TelegramBot, chatId: number, user:
   }
 }
 
-export async function acceptContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number) {
+export async function acceptContactRequest(bot: Telegraf<Context>, chatId: number, user: DbUser, requestId: number) {
   try {
     logger.userAction('accept_contact_request', chatId, chatId, { requestId });
     
@@ -154,7 +154,7 @@ export async function acceptContactRequest(bot: TelegramBot, chatId: number, use
   }
 }
 
-export async function declineContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number) {
+export async function declineContactRequest(bot: Telegraf<Context>, chatId: number, user: DbUser, requestId: number) {
   try {
     logger.userAction('decline_contact_request', chatId, chatId, { requestId });
     

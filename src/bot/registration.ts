@@ -1,5 +1,8 @@
 // src/bot/registration.ts
-import TelegramBot, { Message, ReplyKeyboardMarkup, KeyboardButton } from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
+type Message = any;
+type ReplyKeyboardMarkup = any;
+type KeyboardButton = any;
 import { query } from "../db";
 import { DbUser, sendScreen, setState } from "./helpers";
 import { TXT } from "../ui/text";
@@ -41,7 +44,7 @@ export function validateName(name: string): { valid: boolean; error?: string } {
 }
 
 // === Обработка имени при старте ===
-export async function handleStartName(bot: TelegramBot, chatId: number, user: DbUser, firstName?: string) {
+export async function handleStartName(bot: Telegraf<Context>, chatId: number, user: DbUser, firstName?: string) {
   if (firstName && firstName.trim()) {
     // Вариант A: first_name доступен
     const validation = validateName(firstName);
@@ -64,11 +67,11 @@ export async function handleStartName(bot: TelegramBot, chatId: number, user: Db
 }
 
 // === Возраст ===
-export async function regAskAge(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskAge(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_age");
   await sendScreen(bot, chatId, user, { text: TXT.reg.askAge });
 }
-export async function handleRegAge(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegAge(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   if (!msg.text) return;
   const ageText = msg.text.trim();
   const age = Number(ageText);
@@ -86,18 +89,18 @@ export async function handleRegAge(bot: TelegramBot, msg: Message, user: DbUser)
 }
 
 // === Пол/кого ищешь ===
-export async function regAskGender(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskGender(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_gender");
   await sendScreen(bot, chatId, user, { text: TXT.reg.askGender, keyboard: Keyboards.regGender() });
 }
-export async function regAskSeek(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskSeek(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_seek");
   await sendScreen(bot, chatId, user, { text: TXT.reg.askSeek, keyboard: Keyboards.regSeek() });
 }
 
 // === Город ===
 
-export async function regAskCity(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskCity(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_city");
   const replyKb: ReplyKeyboardMarkup = {
     keyboard: [
@@ -113,7 +116,7 @@ export async function regAskCity(bot: TelegramBot, chatId: number, user: DbUser)
 
 /** Показать экран подтверждения города через reply-кнопку с подсказкой. */
 async function askCityTextWithSuggest(
-  bot: TelegramBot,
+  bot: Telegraf<Context>,
   chatId: number,
   user: DbUser,
   suggest?: string | null
@@ -136,7 +139,7 @@ async function askCityTextWithSuggest(
 }
 
 /** Обработка шага "Город": локация -> подсказка; либо сразу текст. */
-export async function handleRegCity(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegCity(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
   const text = (msg.text ?? "").trim();
 
@@ -208,11 +211,11 @@ export async function handleRegCity(bot: TelegramBot, msg: Message, user: DbUser
 
 
 // === Имя ===
-export async function regAskName(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskName(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_name");
   await sendScreen(bot, chatId, user, { text: "Как тебя называть? Введи имя/ник (2–32 символа)." });
 }
-export async function handleRegName(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegName(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
   const name = (msg.text || "").trim();
   
@@ -230,7 +233,7 @@ export async function handleRegName(bot: TelegramBot, msg: Message, user: DbUser
 }
 
 // Обработчик ручного ввода имени при старте
-export async function handleRegNameManual(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegNameManual(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
   const name = (msg.text || "").trim();
   
@@ -252,7 +255,7 @@ export async function handleRegNameManual(bot: TelegramBot, msg: Message, user: 
 }
 
 // === Начало перерегистрации с имени ===
-export async function startRestartWithName(bot: TelegramBot, chatId: number, user: DbUser, firstName?: string) {
+export async function startRestartWithName(bot: Telegraf<Context>, chatId: number, user: DbUser, firstName?: string) {
   // Сбрасываем данные пользователя
   await query(`DELETE FROM photos WHERE user_id=$1`, [chatId]);
   await query(`
@@ -268,12 +271,12 @@ export async function startRestartWithName(bot: TelegramBot, chatId: number, use
 }
 
 // === О себе (опц.) ===
-export async function regAskAbout(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskAbout(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_about");
   const text = "Расскажи о себе (до 300 символов) или нажми «Пропустить».";
   await sendScreen(bot, chatId, user, { text, keyboard: [[{ text: "Пропустить", callback_data: mkCb(CB.REG, "about_skip") }]] });
 }
-export async function handleRegAbout(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegAbout(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
   const about = (msg.text || "").trim();
   
@@ -306,7 +309,7 @@ function buildRegPhotoText(loaded: number): string {
   ].join("\n");
 }
 
-export async function regAskPhoto(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regAskPhoto(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo_method");
   const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   const c = r.rows[0]?.c ?? 0;
@@ -314,7 +317,7 @@ export async function regAskPhoto(bot: TelegramBot, chatId: number, user: DbUser
 }
 
 // Обработка выбора способа загрузки фото
-export async function regPhotoMethod(bot: TelegramBot, chatId: number, user: DbUser, method: string) {
+export async function regPhotoMethod(bot: Telegraf<Context>, chatId: number, user: DbUser, method: string) {
   if (method === "import") {
     await regPhotoImport(bot, chatId, user);
   } else if (method === "upload") {
@@ -323,7 +326,7 @@ export async function regPhotoMethod(bot: TelegramBot, chatId: number, user: DbU
 }
 
 // Возврат к выбору способа загрузки
-export async function regPhotoMethodBack(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regPhotoMethodBack(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo_method");
   const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   const c = r.rows[0]?.c ?? 0;
@@ -336,7 +339,7 @@ export async function regPhotoMethodBack(bot: TelegramBot, chatId: number, user:
 }
 
 // Показать карусель фото
-export async function regShowPhotoCarousel(bot: TelegramBot, chatId: number, user: DbUser, source: "imported" | "uploaded" = "uploaded") {
+export async function regShowPhotoCarousel(bot: Telegraf<Context>, chatId: number, user: DbUser, source: "imported" | "uploaded" = "uploaded") {
   await setState(chatId, "reg_photo_carousel");
   
   const photos = await getAllUserPhotos(chatId);
@@ -359,7 +362,7 @@ export async function regShowPhotoCarousel(bot: TelegramBot, chatId: number, use
 }
 
 // Показать экран без фото
-export async function regShowNoPhoto(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regShowNoPhoto(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_no_photo");
   
   const text = `👤 Профиль без фото\n\nВы можете продолжить регистрацию без фото или вернуться к выбору способа загрузки.`;
@@ -372,7 +375,7 @@ export async function regShowNoPhoto(bot: TelegramBot, chatId: number, user: DbU
 }
 
 // Показать предпросмотр импорта фото
-export async function regShowImportPreview(bot: TelegramBot, chatId: number, user: DbUser, profilePhotos: string[]) {
+export async function regShowImportPreview(bot: Telegraf<Context>, chatId: number, user: DbUser, profilePhotos: string[]) {
   await setState(chatId, "reg_photo_import_preview");
   
   const currentIndex = 0;
@@ -387,7 +390,7 @@ export async function regShowImportPreview(bot: TelegramBot, chatId: number, use
 }
 
 // Навигация по предпросмотру импорта
-export async function regImportPreviewNav(bot: TelegramBot, chatId: number, user: DbUser, index: number) {
+export async function regImportPreviewNav(bot: Telegraf<Context>, chatId: number, user: DbUser, index: number) {
   // Получаем фото из профиля заново для навигации
   const cur = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   const currentCount = cur.rows[0]?.c ?? 0;
@@ -403,7 +406,7 @@ export async function regImportPreviewNav(bot: TelegramBot, chatId: number, user
   const caption = `📥 Найдено ${profilePhotos.length} фото в вашем профиле\n\nПросмотрите фото и нажмите "Готово" для добавления в профиль.`;
   
   try {
-    await bot.editMessageMedia({
+    await bot.telegram.editMessageMedia({
       type: "photo",
       media: profilePhotos[safeIndex],
       caption,
@@ -418,7 +421,7 @@ export async function regImportPreviewNav(bot: TelegramBot, chatId: number, user
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
-        await bot.deleteMessage(chatId, user.last_screen_msg_id);
+        await bot.telegram.deleteMessage(chatId, user.last_screen_msg_id);
       } catch (deleteError) {
         // Игнорируем ошибки удаления
       }
@@ -434,7 +437,7 @@ export async function regImportPreviewNav(bot: TelegramBot, chatId: number, user
 }
 
 // Импортировать фото при нажатии "Готово"
-export async function regImportPhotos(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regImportPhotos(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   const cur = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
   const currentCount = cur.rows[0]?.c ?? 0;
   const availableSlots = 5 - currentCount;
@@ -455,7 +458,7 @@ export async function regImportPhotos(bot: TelegramBot, chatId: number, user: Db
 }
 
 // Показать предпросмотр загруженных фото
-export async function regShowUploadPreview(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regShowUploadPreview(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo_upload_preview");
   
   const photos = getSessionPhotos(chatId);
@@ -482,7 +485,7 @@ export async function regShowUploadPreview(bot: TelegramBot, chatId: number, use
 
 
 // Навигация по предпросмотру загруженных фото
-export async function regUploadPreviewNav(bot: TelegramBot, chatId: number, user: DbUser, index: number) {
+export async function regUploadPreviewNav(bot: Telegraf<Context>, chatId: number, user: DbUser, index: number) {
   const photos = getSessionPhotos(chatId);
   console.log(`[DEBUG] regUploadPreviewNav: chatId=${chatId}, photos.length=${photos.length}, photos=${JSON.stringify(photos)}`);
   
@@ -498,7 +501,7 @@ export async function regUploadPreviewNav(bot: TelegramBot, chatId: number, user
   
   // Обновляем сообщение с новым фото
   try {
-    await bot.editMessageMedia({
+    await bot.telegram.editMessageMedia({
       type: "photo",
       media: photos[safeIndex],
       caption: `📤 Загружено ${photos.length} фото\n\nВот как будет выглядеть ваш профиль. Просмотрите фото и нажмите "Готово" для завершения.\n\n📸 Фото ${safeIndex + 1} из ${photos.length}`,
@@ -513,7 +516,7 @@ export async function regUploadPreviewNav(bot: TelegramBot, chatId: number, user
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
-        await bot.deleteMessage(chatId, user.last_screen_msg_id);
+        await bot.telegram.deleteMessage(chatId, user.last_screen_msg_id);
       } catch (deleteError) {
         // Игнорируем ошибки удаления
       }
@@ -529,7 +532,7 @@ export async function regUploadPreviewNav(bot: TelegramBot, chatId: number, user
 }
 
 // Сохранить загруженные фото в профиль
-export async function regSaveUploadedPhotos(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regSaveUploadedPhotos(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   const photos = getSessionPhotos(chatId);
   if (photos.length === 0) {
     await regConfirm(bot, chatId, user);
@@ -577,7 +580,7 @@ export async function regSaveUploadedPhotos(bot: TelegramBot, chatId: number, us
 }
 
 // Навигация по карусели фото
-export async function regPhotoCarouselNav(bot: TelegramBot, chatId: number, user: DbUser, index: number) {
+export async function regPhotoCarouselNav(bot: Telegraf<Context>, chatId: number, user: DbUser, index: number) {
   const photos = await getAllUserPhotos(chatId);
   if (photos.length === 0) {
     await regShowNoPhoto(bot, chatId, user);
@@ -588,7 +591,7 @@ export async function regPhotoCarouselNav(bot: TelegramBot, chatId: number, user
   const caption = `📸 Просмотр фото ${safeIndex + 1}/${photos.length}\n\nПросмотрите фото и нажмите "Готово" для продолжения.`;
   
   try {
-    await bot.editMessageMedia({
+    await bot.telegram.editMessageMedia({
       type: "photo",
       media: photos[safeIndex],
       caption,
@@ -603,7 +606,7 @@ export async function regPhotoCarouselNav(bot: TelegramBot, chatId: number, user
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
-        await bot.deleteMessage(chatId, user.last_screen_msg_id);
+        await bot.telegram.deleteMessage(chatId, user.last_screen_msg_id);
       } catch (deleteError) {
         // Игнорируем ошибки удаления
       }
@@ -619,7 +622,7 @@ export async function regPhotoCarouselNav(bot: TelegramBot, chatId: number, user
 }
 
 // Импорт фото из профиля - предпросмотр
-export async function regPhotoImport(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regPhotoImport(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo_import_preview");
   
   const cur = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
@@ -650,7 +653,7 @@ export async function regPhotoImport(bot: TelegramBot, chatId: number, user: DbU
 }
 
 // Начать загрузку фото
-export async function regPhotoUpload(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regPhotoUpload(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_photo_upload");
   
   const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
@@ -675,7 +678,7 @@ export async function regPhotoUpload(bot: TelegramBot, chatId: number, user: DbU
   });
 }
 
-export async function handleRegPhotoMessage(bot: TelegramBot, msg: Message, user: DbUser) {
+export async function handleRegPhotoMessage(bot: Telegraf<Context>, msg: Message, user: DbUser) {
   const chatId = msg.chat.id;
   
   // Проверяем, что пользователь в правильном состоянии для загрузки фото
@@ -772,7 +775,7 @@ export async function handleRegPhotoMessage(bot: TelegramBot, msg: Message, user
 }
 
 // === Предпросмотр/подтверждение ===
-export async function regShowPreview(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regShowPreview(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await setState(chatId, "reg_preview");
   const { buildProfileCaption, getMainPhotoFileId } = await import("./profile");
   const caption = await buildProfileCaption(chatId);
@@ -790,7 +793,7 @@ export async function regShowPreview(bot: TelegramBot, chatId: number, user: DbU
   });
 }
 
-export async function regConfirm(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function regConfirm(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   await query(`UPDATE users SET status='active', state='idle', updated_at=now() WHERE tg_id=$1`, [chatId]);
   await showProfile(bot, chatId, user);
 }

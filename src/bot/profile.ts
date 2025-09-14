@@ -1,6 +1,6 @@
 // src/bot/profile.ts
 // Экран "Профиль" с каруселью фото: одно сообщение, фото переключаются через editMessageMedia.
-import TelegramBot from "node-telegram-bot-api";
+import { Telegraf, Context } from 'telegraf';
 import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
@@ -45,7 +45,7 @@ export async function buildProfileCaption(userId: number): Promise<string> {
 }
 
 // Рендер профиля: если фото >1 — показываем карусель (клавиатура с навигацией)
-export async function showProfile(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function showProfile(bot: Telegraf<Context>, chatId: number, user: DbUser) {
   const photos = await getAllPhotoIds(chatId);
   const caption = await buildProfileCaption(chatId);
 

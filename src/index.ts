@@ -1,6 +1,7 @@
 // src/index.ts
-import TelegramBot, { Message } from "node-telegram-bot-api";
-import { BOT_TOKEN } from "./config";
+import { Telegraf, Context } from 'telegraf';
+import type { Message } from 'telegraf/typings/core/types/typegram';
+import { BOT_TOKEN, ADMIN_CHAT_ID } from "./config";
 import { query, waitForDb } from "./db";
 import { ensureUser, sendScreen } from "./bot/helpers";
 import { showMainMenu, showHelp } from "./bot/menu";
@@ -41,109 +42,90 @@ async function bootstrap() {
     await waitForDb();
     logger.info("Database connection established");
 
-    if (!BOT_TOKEN) {
-      throw new Error("BOT_TOKEN is not configured");
-    }
+    const bot = new Telegraf(BOT_TOKEN);
 
-    const bot = new TelegramBot(BOT_TOKEN, { polling: true });
-    
-    // Инициализируем обработчик ошибок
-    ErrorHandler.initialize(bot, process.env.ADMIN_CHAT_ID);
-    
+    ErrorHandler.initialize(bot, ADMIN_CHAT_ID);
+
     logger.info("Bot instance created successfully");
 
-    
-    // === Глобальные перехватчики и логи ===
-    // Лог ошибок поллинга/сетевых
-    bot.on("polling_error", async (e: any) => {
-      await ErrorHandler.handleBotError(e as Error, 'polling_error');
-    });
-    
-    (bot as any).on("error", async (e: any) => {
-      await ErrorHandler.handleBotError(e as Error, 'bot_error');
+    bot.use(async (ctx: Context, next: () => Promise<void>) => {
+      try {
+        await next();
+      } catch (e) {
+        await ErrorHandler.handleBotError(e as Error, 'middleware', ctx.from?.id, ctx.chat?.id);
+      }
     });
 
-    // Обёртка над sendMessage: не даём отправить пустой текст
-    const __origSendMessage = bot.sendMessage.bind(bot);
-    bot.sendMessage = (chatId: number | string, text: any, options?: any) => {
-      const t = (typeof text === "string" ? text : "");
-      if (!t || !t.trim()) {
-        const err = new Error("sendMessage(text) был пустым — автозамена на «—»");
-        logger.warn("Empty text in sendMessage prevented", {
-          action: 'empty_message_guard',
-          chatId: Number(chatId),
-          options
-        });
-        text = "—"; // безопасный видимый символ, чтобы Telegram не ругался
-      }
-      return __origSendMessage(chatId as any, text, options);
-    };
-// Команды
-  bot.setMyCommands([
-    { command: "start",     description: "Старт" },
-    { command: "menu",      description: "Меню" },
-    { command: "profile",   description: "Профиль" },
-    { command: "browse",    description: "Смотреть анкеты" },
-    { command: "roulette",  description: "Чат-рулетка" },
-    { command: "nearby",    description: "Люди рядом" },
-    { command: "contacts",  description: "Принятые контакты" },
+    bot.catch(async (e, ctx) => {
+      await ErrorHandler.handleBotError(e as Error, 'bot_error', ctx.from?.id, ctx.chat?.id);
+    });
+
+    await bot.telegram.setMyCommands([
+      { command: "start",     description: "Старт" },
+      { command: "menu",      description: "Меню" },
+      { command: "profile",   description: "Профиль" },
+      { command: "browse",    description: "Смотреть анкеты" },
+      { command: "roulette",  description: "Чат-рулетка" },
+      { command: "nearby",    description: "Люди рядом" },
+      { command: "contacts",  description: "Принятые контакты" },
     { command: "requests",  description: "Запросы на контакты" },
     { command: "help",      description: "Справка" },
     { command: "sharetest", description: "Тест кнопки геолокации" },
   ]).catch(()=>{});
 
     // /start,/menu — вход
-    bot.onText(/^\/(start|menu)$/i, async (msg) => {
+    bot.command(['start', 'menu'], async (ctx) => {
+      const msg = ctx.message as Message;
       try {
-        const chatId = msg.chat.id;
-        const userId = msg.from?.id;
-        
+        const chatId = ctx.chat?.id!;
+        const userId = ctx.from?.id;
+
         logger.userAction('command_start_menu', userId || 0, chatId);
-        
-        const u = await ensureUser(chatId, msg.from?.username);
+
+        const u = await ensureUser(chatId, ctx.from?.username);
         if (u.status === "new" || !u.state) {
-          // Новый пользователь - обрабатываем имя
-          await handleStartName(bot, chatId, u, msg.from?.first_name);
+          await handleStartName(bot, chatId, u, ctx.from?.first_name);
           return;
         }
         await showMainMenu(bot, chatId, u);
       } catch (error) {
-        await ErrorHandler.handleUserError(error as Error, msg.from?.id || 0, msg.chat.id, 'start_menu');
+        await ErrorHandler.handleUserError(error as Error, ctx.from?.id || 0, ctx.chat?.id || 0, 'start_menu');
       }
     });
 
-  bot.onText(/^\/help$/i, async (msg) => {
-    const u = await ensureUser(msg.chat.id, msg.from?.username);
-    await showHelp(bot, msg.chat.id, u);
-  });
+    bot.command('help', async (ctx) => {
+      const u = await ensureUser(ctx.chat?.id!, ctx.from?.username);
+      await showHelp(bot, ctx.chat?.id!, u);
+    });
 
-  bot.onText(/^\/profile$/i, async (msg) => {
-    const u = await ensureUser(msg.chat.id, msg.from?.username);
-    await showProfile(bot, msg.chat.id, u);
-  });
+    bot.command('profile', async (ctx) => {
+      const u = await ensureUser(ctx.chat?.id!, ctx.from?.username);
+      await showProfile(bot, ctx.chat?.id!, u);
+    });
 
-  // Тестовая команда для проверки reply-кнопки геолокации
-  bot.onText(/^\/sharetest$/i, async (msg) => {
-    const kb = {
-      keyboard: [
-        [ { text: TXT.reg.cityShareBtn, request_location: true } ],
-        [ { text: TXT.reg.cityManualBtn } ],
-      ],
-      resize_keyboard: true,
-      one_time_keyboard: true
-    } as any;
-    await bot.sendMessage(msg.chat.id, "Тест: на мобильном Telegram появится кнопка ниже.", { reply_markup: kb });
-  });
+    // Тестовая команда для проверки reply-кнопки геолокации
+    bot.command('sharetest', async (ctx) => {
+      const kb = {
+        keyboard: [
+          [{ text: TXT.reg.cityShareBtn, request_location: true }],
+          [{ text: TXT.reg.cityManualBtn }],
+        ],
+        resize_keyboard: true,
+        one_time_keyboard: true,
+      } as any;
+      await ctx.reply("Тест: на мобильном Telegram появится кнопка ниже.", { reply_markup: kb });
+    });
 
-  // Текст/медиа по состояниям
-  bot.on("message", async (msg: Message) => {
-    if (!msg.from) return;
-    if (msg.text && msg.text.startsWith("/")) return;
+    // Текст/медиа по состояниям
+    bot.on('message', async (ctx) => {
+      const msg = ctx.message as Message;
+      if (!msg.from) return;
+      if (msg.text && msg.text.startsWith("/")) return;
 
-    const chatId = msg.chat.id;
-    await ensureUser(chatId, msg.from.username);
-    const fresh = await loadUser(chatId);
-    const state = fresh?.state as string | null;
+      const chatId = msg.chat.id;
+      await ensureUser(chatId, msg.from.username);
+      const fresh = await loadUser(chatId);
+      const state = fresh?.state as string | null;
 
     if (state === "reg_age") {
       await handleRegAge(bot, msg, fresh);
@@ -233,11 +215,12 @@ async function bootstrap() {
     }
   });
 
-  // Кнопки (inline callbacks)
-  bot.on("callback_query", async (cq) => {
-    await handleCallback(bot, cq);
-  });
+    // Кнопки (inline callbacks)
+    bot.on('callback_query', async (ctx) => {
+      if (ctx.callbackQuery) await handleCallback(bot, ctx.callbackQuery);
+    });
 
+    await bot.launch();
     logger.info("Bot polling started successfully");
     
   } catch (error) {

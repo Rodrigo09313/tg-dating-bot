@@ -1,7 +1,15 @@
 import 'dotenv/config';
 
-export const BOT_TOKEN =
-  process.env.BOT_TOKEN || "";
+export const BOT_TOKEN = process.env.BOT_TOKEN || "";
+export const ADMIN_CHAT_ID = process.env.ADMIN_CHAT_ID || "";
+
+if (!BOT_TOKEN) {
+  throw new Error('BOT_TOKEN is required');
+}
+
+if (!ADMIN_CHAT_ID) {
+  throw new Error('ADMIN_CHAT_ID is required');
+}
 
 export const DATABASE_URL =
   process.env.DATABASE_URL ||
