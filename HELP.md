@@ -39,7 +39,7 @@ npm i
 npm run dev
 
 git add .
-git commit -m "Рабочее меню и регистрация"
+git commit -m "Рабочее меню и регистрация новая"
 git push
 
 # 1) посмотреть изменения
