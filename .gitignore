@@ -1,0 +1,21 @@
+# Node
+node_modules/
+dist/
+.nyc_output/
+coverage/
+*.log
+
+# Env / secrets
+.env
+.env.local
+.env.development
+.env.production
+
+# Editor
+.vscode/
+.idea/
+
+# Docker artifacts
+docker/*.bak
+*.DS_Store
+*.code-workspace

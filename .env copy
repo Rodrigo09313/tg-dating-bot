@@ -1,0 +1,15 @@
+BOT_TOKEN=7674202842:AAGUIRbf77tVwZ688JWH-yoqOezWYrlfB_A
+DATABASE_URL=postgres://tguser:tgpass@localhost:5432/tgdb
+SCREEN_TTL_MS=300000
+POSTGRES_DB=tgdb
+POSTGRES_USER=tguser
+POSTGRES_PASSWORD=tgpass
+DB_HOST=127.0.0.1
+DB_PORT=5432
+# Геокодер (по умолчанию Яндекс)
+GEOCODER_PROVIDER=yandex
+YANDEX_GEOCODER_KEY=208526d1-d315-4072-9da0-8437c5faf919
+# На фри-лицензии Яндекса хранить результаты нельзя → сохраняем город только как пользовательский ввод
+YANDEX_ALLOW_STORE=false
+# E-mail в User-Agent (вежливость для провайдера)
+GEOCODER_EMAIL=rodion.093@yandex.ru
