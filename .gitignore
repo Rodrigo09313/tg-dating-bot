@@ -19,3 +19,4 @@ coverage/
 docker/*.bak
 *.DS_Store
 *.code-workspace
+backups/
