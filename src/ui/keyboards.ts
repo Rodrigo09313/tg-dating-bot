@@ -46,6 +46,7 @@ export const BUTTONS = {
   STOP_CHAT: "❌ Завершить чат",
   
   // Профиль
+  EDIT_PROFILE: "✏️ Редактировать профиль",
   PHOTOS: "🖼️ Мои фото",
   ABOUT: "📝 О себе", 
   RESTART: "🔄 Пересоздать",
@@ -64,20 +65,32 @@ export const Keyboards = {
     return [
       [{ text: BUTTONS.ROULETTE, callback_data: mkCb(CB.RL, "find") }],
       [{ text: BUTTONS.FIND_PAIR, callback_data: mkCb(CB.BRW, "start") }],
-      [{ text: BUTTONS.PROFILE, callback_data: mkCb(CB.PRF, "open") }],
-      [{ text: BUTTONS.HELP, callback_data: mkCb(CB.SYS, "help") }]
+      [
+        { text: BUTTONS.PROFILE, callback_data: mkCb(CB.PRF, "open") },
+        { text: BUTTONS.HELP, callback_data: mkCb(CB.SYS, "help") }
+      ]
     ];
   },
 
   // Профиль
   profile(): InlineKeyboardButton[][] {
     return [
-      [{ text: BUTTONS.FIND_PAIR, callback_data: mkCb(CB.BRW, "start") }],
-      [{ text: BUTTONS.FAVORITES, callback_data: mkCb(CB.FAV, "list") }],
-      [{ text: BUTTONS.REQUESTS, callback_data: mkCb(CB.CR, "list") }],
+      [
+        { text: BUTTONS.FAVORITES, callback_data: mkCb(CB.FAV, "list") },
+        { text: BUTTONS.REQUESTS, callback_data: mkCb(CB.CR, "list") }
+      ],
+      [{ text: BUTTONS.EDIT_PROFILE, callback_data: mkCb(CB.PRF, "edit") }],
+      [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
+    ];
+  },
+
+  // Редактировать профиль
+  editProfile(): InlineKeyboardButton[][] {
+    return [
       [{ text: BUTTONS.PHOTOS, callback_data: mkCb(CB.PRF, "photo") }],
       [{ text: BUTTONS.ABOUT, callback_data: mkCb(CB.PRF, "about") }],
-      [{ text: BUTTONS.RESTART, callback_data: mkCb(CB.PRF, "restart_confirm") }]
+      [{ text: BUTTONS.RESTART, callback_data: mkCb(CB.PRF, "restart_confirm") }],
+      [{ text: BUTTONS.MENU, callback_data: mkCb(CB.PRF, "open") }]
     ];
   },
 
@@ -202,12 +215,14 @@ export const Keyboards = {
   // Просмотр анкет
   browseCard(candidateId: number): InlineKeyboardButton[][] {
     return [
-      [{ text: BUTTONS.NEXT, callback_data: mkCb(CB.BRW, "next") }],
       [
-        { text: BUTTONS.WRITE, callback_data: mkCb(CB.CR, "req", candidateId) },
+        { text: BUTTONS.NEXT, callback_data: mkCb(CB.BRW, "next") },
+        { text: BUTTONS.WRITE, callback_data: mkCb(CB.CR, "req", candidateId) }
+      ],
+      [
+        { text: BUTTONS.REPORT, callback_data: mkCb(CB.REP, "card", candidateId) },
         { text: BUTTONS.ADD_FAVORITE, callback_data: mkCb(CB.FAV, "add", candidateId) }
       ],
-      [{ text: BUTTONS.REPORT, callback_data: mkCb(CB.REP, "card", candidateId) }],
       [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
     ];
   },
@@ -254,13 +269,15 @@ export const Keyboards = {
   // Рулетка
   rouletteWaiting(): InlineKeyboardButton[][] {
     return [
-      [{ text: BUTTONS.STOP_SEARCH, callback_data: mkCb(CB.RL, "stop") }]
+      [{ text: BUTTONS.STOP_SEARCH, callback_data: mkCb(CB.RL, "stop") }],
+      [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
     ];
   },
 
   rouletteChat(): InlineKeyboardButton[][] {
     return [
-      [{ text: BUTTONS.STOP_CHAT, callback_data: mkCb(CB.RL, "stop") }]
+      [{ text: BUTTONS.STOP_CHAT, callback_data: mkCb(CB.RL, "stop") }],
+      [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
     ];
   },
 

@@ -1,5 +1,7 @@
+import { esc } from "../lib/html";
 // src/bot/browse.ts
-// Показ следующей анкеты по правилам: совместимость, город/радиус, исключить уже показанных.
+// Показ следующей анкеты: показываем всех пользователей подряд, исключая уже показанных.
+// Когда список заканчивается, начинаем показ с начала.
 // Показываем главное фото, подпись с расстоянием (если есть), кнопки — из kb.browseCard.
 
 import TelegramBot from "node-telegram-bot-api";
@@ -12,8 +14,7 @@ import { TXT } from "../ui/text";
 import { mkCb } from "../ui/cb";
 import { CB } from "../types";
 
-// Конфиг по умолчанию
-const DEFAULT_RADIUS_KM = Number(process.env.BROWSE_RADIUS_KM ?? 50); // радиус отбора при наличии гео
+// Конфиг по умолчанию (убрано - больше не используем фильтры)
 
 type CandidateRow = {
   tg_id: number;
@@ -25,37 +26,16 @@ type CandidateRow = {
   dist_km: number | null;   // расстояние до текущего пользователя
 };
 
-// Собираем пул кандидатов с учётом совместимости и гео, исключая уже просмотренных
-async function pickCandidate(currentId: number, radiusKm: number): Promise<CandidateRow | null> {
-  // Берём пользователя для параметров
-  const meQ = await query<{
-    gender: "m" | "f" | null,
-    seek: "m" | "f" | "b" | null,
-    city_name: string | null,
-    has_geom: boolean,
-  }>(`
-    SELECT gender, seek, city_name, geom IS NOT NULL AS has_geom
-    FROM users WHERE tg_id = $1
-  `, [currentId]);
-  const me = meQ.rows[0];
-  if (!me) return null;
-
-  const wantM = me.seek === "m" || me.seek === "b";
-  const wantF = me.seek === "f" || me.seek === "b";
-  const myIsM = me.gender === "m";
-  const myIsF = me.gender === "f";
-
+// Собираем пул кандидатов, исключая уже просмотренных
+async function pickCandidate(currentId: number): Promise<CandidateRow | null> {
   // SQL:
   //  - активные + не я
   //  - у кандидата есть хотя бы одно фото
-  //  - взаимная совместимость по полу/поиску
-  //  - геофильтр:
-  //      (оба с geom -> в радиусе) OR (оба с city_name и одинаковые города)
   //  - исключаем уже показанных в browse_seen
-  //  - берём случайные из пула до 50, затем 1
+  //  - берём случайные из пула, затем 1
   const sql = `
     WITH me AS (
-      SELECT tg_id, geom, city_name
+      SELECT tg_id, geom
       FROM users WHERE tg_id = $1
     ),
     base AS (
@@ -76,32 +56,10 @@ async function pickCandidate(currentId: number, radiusKm: number): Promise<Candi
       WHERE u.status = 'active'
         AND u.tg_id <> $1
         AND EXISTS (SELECT 1 FROM photos px WHERE px.user_id = u.tg_id)
-        -- совместимость: я хочу его пол, а он хочет мой пол (или 'b')
-        AND (
-              ($2::bool = TRUE AND u.gender = 'm') OR
-              ($3::bool = TRUE AND u.gender = 'f')
-            )
-        AND (
-              (u.seek = 'b') OR
-              (u.seek = 'm' AND $4::bool = TRUE) OR
-              (u.seek = 'f' AND $5::bool = TRUE)
-            )
         -- не показывать ранее показанных
         AND NOT EXISTS (
           SELECT 1 FROM browse_seen bs
           WHERE bs.user_id = $1 AND bs.seen_user_id = u.tg_id
-        )
-        -- геофильтр
-        AND (
-          -- оба с гео -> по радиусу
-          (u.geom IS NOT NULL AND (SELECT has_geom FROM (SELECT geom IS NOT NULL AS has_geom FROM users WHERE tg_id=$1) x) = TRUE
-             AND ST_DWithin(u.geom::geography, (SELECT geom FROM me)::geography, $6 * 1000)
-          )
-          OR
-          -- оба с городом и совпадает city_name
-          (u.city_name IS NOT NULL AND (SELECT city_name FROM me) IS NOT NULL
-             AND lower(u.city_name) = lower((SELECT city_name FROM me))
-          )
         )
     )
     SELECT * FROM base
@@ -109,14 +67,7 @@ async function pickCandidate(currentId: number, radiusKm: number): Promise<Candi
     LIMIT 1;
   `;
 
-  const r = await query<CandidateRow>(sql, [
-    currentId,
-    wantM,          // $2
-    wantF,          // $3
-    myIsM,          // $4
-    myIsF,          // $5
-    radiusKm,       // $6
-  ]);
+  const r = await query<CandidateRow>(sql, [currentId]);
 
   return r.rows[0] ?? null;
 }
@@ -126,7 +77,7 @@ export function buildCardCaption(c: CandidateRow): string {
   const parts: string[] = [];
   const header = `${c.name ?? TXT.browse.noName}${c.age ? ", " + c.age : ""}${c.city_name ? ", " + c.city_name : ""}`;
   parts.push(`<b>${header}</b>`);
-  if (c.about) parts.push(c.about.slice(0, 300));
+  if (c.about) parts.push(esc(c.about).slice(0, 300));
 
   if (typeof c.dist_km === "number") {
     const km = Math.max(0, Math.round(c.dist_km * 10) / 10); // 1 знак после запятой
@@ -152,19 +103,19 @@ export async function browseShowNext(bot: TelegramBot, chatId: number, user: DbU
   // переводим в состояние browse/browse_card
   await setState(chatId, "browse_card");
 
-  const cand = await pickCandidate(chatId, DEFAULT_RADIUS_KM);
+  const cand = await pickCandidate(chatId);
   if (!cand) {
-    // Если нет кандидатов, сбрасываем просмотренные и ищем снова
+    // Если нет кандидатов, сбрасываем просмотренных и ищем снова
     await query("DELETE FROM browse_seen WHERE user_id = $1", [chatId]);
     
     // Пытаемся найти кандидата снова
-    const newCand = await pickCandidate(chatId, DEFAULT_RADIUS_KM);
+    const newCand = await pickCandidate(chatId);
     if (!newCand) {
       // Если и после сброса никого нет - показываем сообщение
       await sendScreen(bot, chatId, user, {
         text: [
           TXT.browse.noResults,
-          TXT.browse.tryLater.replace('{radius}', DEFAULT_RADIUS_KM.toString())
+          "Попробуй позже или проверь, что в системе есть другие пользователи."
         ].join("\n"),
         keyboard: [
           [{ text: TXT.browse.tryAgain, callback_data: mkCb(CB.BRW, "next") }],
@@ -212,11 +163,13 @@ async function showBrowseCard(bot: TelegramBot, chatId: number, user: DbUser, ca
       photoFileId: photos[currentIndex],
       caption,
       keyboard: Keyboards.browseCardWithNav(candidate.tg_id, photos.length, currentIndex),
+      parse_mode: "HTML",
     });
   } else {
     await sendScreen(bot, chatId, user, { 
       text: caption, 
-      keyboard: Keyboards.browseCard(candidate.tg_id) 
+      keyboard: Keyboards.browseCard(candidate.tg_id),
+      parse_mode: "HTML"
     });
   }
 }

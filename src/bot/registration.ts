@@ -763,7 +763,7 @@ export async function handleRegPhotoMessage(bot: TelegramBot, msg: Message, user
     
     // Показываем или обновляем предпросмотр загруженных фото
     // sendScreen сам управляет удалением старых сообщений
-    await regShowUploadPreview(bot, chatId, updatedUser);
+    await regShowUploadPreview(bot, chatId, updatedUser as DbUser);
     
   } finally {
     // Сбрасываем флаг обработки
@@ -782,7 +782,9 @@ export async function regShowPreview(bot: TelegramBot, chatId: number, user: DbU
     return;
   }
   await sendScreen(bot, chatId, user, {
-    photoFileId: mainPhoto, caption,
+    photoFileId: mainPhoto, 
+    caption,
+    parse_mode: "HTML",
     keyboard: [
       [{ text: "✅ Подтвердить",    callback_data: mkCb(CB.REG, "confirm") }],
       [{ text: "📷 Изменить фото",  callback_data: mkCb(CB.REG, "photo_again") }],

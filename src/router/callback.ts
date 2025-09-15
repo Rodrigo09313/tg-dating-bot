@@ -51,8 +51,19 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     const user = await ensureUser(chatId, cq.from?.username || null);
     if (!user || isScreenExpired(user)) {
       await ack(bot, cq.id, TXT.errors.screenExpired);
-      await showMainMenu(bot, chatId, user);
+      // Обновляем пользователя перед показом меню
+      const updatedUser = await ensureUser(chatId, cq.from?.username || null);
+      await showMainMenu(bot, chatId, updatedUser);
       return;
+    }
+
+    // Дополнительная проверка: если у пользователя нет last_screen_msg_id, принудительно обновляем
+    if (!user.last_screen_msg_id) {
+      const updatedUser = await ensureUser(chatId, cq.from?.username || null);
+      if (updatedUser.last_screen_msg_id) {
+        // Если обновленный пользователь имеет last_screen_msg_id, используем его
+        user.last_screen_msg_id = updatedUser.last_screen_msg_id;
+      }
     }
 
     const { prefix, verb, id } = parsed;
@@ -68,7 +79,9 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     }
     if (verb === "menu") {
       await ack(bot, cq.id);
-      await showMainMenu(bot, chatId, user);
+      // Обновляем пользователя перед показом меню
+      const updatedUser = await ensureUser(chatId, cq.from?.username || null);
+      await showMainMenu(bot, chatId, updatedUser);
       return;
     }
   }
@@ -165,6 +178,15 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     if (verb === "open") {
       await ack(bot, cq.id);
       await showProfile(bot, chatId, user);
+      return;
+    }
+    if (verb === "edit") {
+      await ack(bot, cq.id);
+      await sendScreen(bot, chatId, user, { 
+        text: "✏️ <b>Редактировать профиль</b>\n\nВыберите, что хотите изменить:",
+        keyboard: Keyboards.editProfile(),
+        parse_mode: "HTML"
+      });
       return;
     }
     if (verb === "about") {
@@ -440,7 +462,9 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     });
     
     await ack(bot, cq.id, TXT.errors.commandUnknown);
-    await showMainMenu(bot, chatId, user);
+    // Обновляем пользователя перед показом меню
+    const updatedUser = await ensureUser(chatId, cq.from?.username || null);
+    await showMainMenu(bot, chatId, updatedUser);
     
   } catch (error) {
     const chatId = cq.message?.chat.id || 0;

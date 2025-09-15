@@ -1,3 +1,4 @@
+import { esc } from "../lib/html";
 // src/bot/contacts.ts
 // Управление запросами на контакты
 
@@ -182,6 +183,6 @@ function buildUserCaption(user: {
   const parts: string[] = [];
   const header = `${user.name ?? "Без имени"}${user.age ? ", " + user.age : ""}${user.city_name ? ", " + user.city_name : ""}`;
   parts.push(`<b>${header}</b>`);
-  if (user.about) parts.push(user.about.slice(0, 300));
+  if (user.about) parts.push(esc(user.about).slice(0, 300));
   return parts.join("\n");
 }

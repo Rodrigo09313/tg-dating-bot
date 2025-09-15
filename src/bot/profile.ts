@@ -1,3 +1,4 @@
+import { esc } from "../lib/html";
 // src/bot/profile.ts
 // Экран "Профиль" с каруселью фото: одно сообщение, фото переключаются через editMessageMedia.
 import TelegramBot from "node-telegram-bot-api";
@@ -5,9 +6,6 @@ import { query } from "../db";
 import { DbUser, sendScreen } from "./helpers";
 import { Keyboards } from "../ui/keyboards";
 
-function esc(s: string): string {
-  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
 
 // Все фото пользователя (до 3), в порядке pos ASC
 export async function getAllPhotoIds(userId: number): Promise<string[]> {
@@ -39,9 +37,11 @@ export async function buildProfileCaption(userId: number): Promise<string> {
     `SELECT name, age, city_name, about FROM users WHERE tg_id = $1`, [userId]
   );
   const u = r.rows[0] || {};
-  const line1 = `${esc(u.name ?? "Без имени")}${u.age ? ", " + u.age : ""}${u.city_name ? ", " + esc(u.city_name) : ""}`;
-  const line2 = u.about ? esc(u.about) : "";
-  return [line1, line2].filter(Boolean).join("\n");
+  const header = `${esc(u.name ?? "Без имени")}${u.age ? ", " + u.age : ""}${u.city_name ? ", " + esc(u.city_name) : ""}`;
+  const parts: string[] = [];
+  parts.push(`<b>${header}</b>`);
+  if (u.about) parts.push(esc(u.about).slice(0, 300));
+  return parts.join("\n");
 }
 
 // Рендер профиля: если фото >1 — показываем карусель (клавиатура с навигацией)
@@ -55,8 +55,13 @@ export async function showProfile(bot: TelegramBot, chatId: number, user: DbUser
       photoFileId: photos[currentIndex],
       caption,
       keyboard: Keyboards.profileWithNav(photos.length, currentIndex),
+      parse_mode: "HTML",
     });
   } else {
-    await sendScreen(bot, chatId, user, { text: caption, keyboard: Keyboards.profile() });
+    await sendScreen(bot, chatId, user, { 
+      text: caption, 
+      keyboard: Keyboards.profile(),
+      parse_mode: "HTML"
+    });
   }
 }

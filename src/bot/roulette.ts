@@ -25,7 +25,10 @@ export async function startRoulette(bot: TelegramBot, chatId: number, user: DbUs
     );
     
     if (inQueue.rows.length > 0) {
-      await sendScreen(bot, chatId, user, { text: "Вы уже в очереди рулетки. Ожидайте..." });
+      await sendScreen(bot, chatId, user, { 
+        text: "🎲 Вы уже в очереди рулетки. Ожидайте...\n\nИщем подходящего собеседника для анонимного чата.",
+        keyboard: Keyboards.rouletteWaiting()
+      });
       return;
     }
 
@@ -47,7 +50,10 @@ export async function startRoulette(bot: TelegramBot, chatId: number, user: DbUs
     
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'start_roulette');
-    await sendScreen(bot, chatId, user, { text: "Не удалось начать рулетку. Попробуйте позже." });
+    await sendScreen(bot, chatId, user, { 
+      text: "❌ Не удалось начать рулетку. Попробуйте позже.",
+      keyboard: Keyboards.backToMenu()
+    });
   }
 }
 
@@ -73,7 +79,10 @@ export async function stopRoulette(bot: TelegramBot, chatId: number, user: DbUse
     
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'stop_roulette');
-    await sendScreen(bot, chatId, user, { text: "Не удалось отменить поиск. Попробуйте позже." });
+    await sendScreen(bot, chatId, user, { 
+      text: "❌ Не удалось отменить поиск. Попробуйте позже.",
+      keyboard: Keyboards.backToMenu()
+    });
   }
 }
 

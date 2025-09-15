@@ -1,10 +1,10 @@
 // src/db.ts
-import { Pool, QueryResult } from "pg";
+import { Pool, QueryResult, QueryResultRow } from "pg";
 import { DATABASE_URL } from "./config";
 
 export const pool = new Pool({ connectionString: DATABASE_URL });
 
-export async function query<T=any>(text: string, params?: any[]): Promise<QueryResult<T>> {
+export async function query<T extends QueryResultRow = QueryResultRow>(text: string, params?: any[]): Promise<QueryResult<T>> {
   return pool.query<T>(text, params);
 }
 

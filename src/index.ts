@@ -1,3 +1,4 @@
+import type { DbUser } from "./bot/helpers";
 // src/index.ts
 import TelegramBot, { Message } from "node-telegram-bot-api";
 import { BOT_TOKEN } from "./config";
@@ -149,7 +150,7 @@ async function bootstrap() {
     const state = fresh?.state as string | null;
 
     if (state === "reg_age") {
-      await handleRegAge(bot, msg, fresh);
+      await handleRegAge(bot, msg, fresh as DbUser);
       return;
     }
 
@@ -160,7 +161,7 @@ async function bootstrap() {
 
     if (state === "reg_city") {
       if (msg.location || msg.text) {
-        await handleRegCity(bot, msg, fresh);
+        await handleRegCity(bot, msg, fresh as DbUser);
         return;
       }
       return;
@@ -168,7 +169,7 @@ async function bootstrap() {
 
     if (state === "reg_city_text") {
       if (msg.text || msg.location) {
-        await handleRegCity(bot, msg, fresh); // используем тот же обработчик (пришёл текст города)
+        await handleRegCity(bot, msg, fresh as DbUser); // используем тот же обработчик (пришёл текст города)
         return;
       }
       return;
@@ -176,14 +177,14 @@ async function bootstrap() {
 
     if (state === "reg_name_manual") {
       if (msg.text) {
-        await handleRegNameManual(bot, msg, fresh);
+        await handleRegNameManual(bot, msg, fresh as DbUser);
       }
       return;
     }
 
     if (state === "reg_photo" || state === "reg_photo_upload" || state === "reg_photo_upload_preview") {
       if (msg.photo && msg.photo.length) {
-        await handleRegPhotoMessage(bot, msg, fresh);
+        await handleRegPhotoMessage(bot, msg, fresh as DbUser);
         return;
       }
       return;
@@ -195,7 +196,7 @@ async function bootstrap() {
     }
 
     if (state === "reg_preview") {
-      await regShowPreview(bot, chatId, fresh);
+      await regShowPreview(bot, chatId, fresh as DbUser);
       return;
     }
 
@@ -204,7 +205,7 @@ async function bootstrap() {
       if (msg.text) {
         const about = msg.text.trim();
         if (about.length > 300) {
-          await sendScreen(bot, chatId, fresh, { text: TXT.validation.aboutTooLong });
+          await sendScreen(bot, chatId, fresh as DbUser, { text: TXT.validation.aboutTooLong });
           return;
         }
         await query(`UPDATE users SET about=$2, state='idle', updated_at=now() WHERE tg_id=$1`, [chatId, about || null]);
@@ -220,15 +221,15 @@ async function bootstrap() {
         const { addPhotoSafely } = await import("./bot/photo");
         try {
           const { total } = await addPhotoSafely(chatId, best.file_id);
-          await sendScreen(bot, chatId, fresh, { 
+          await sendScreen(bot, chatId, fresh as DbUser, { 
             text: `Фото добавлено (${total}/3).`,
             keyboard: [[{ text: "✅ Готово", callback_data: mkCb(CB.PRF, "photo_done") }]]
           });
         } catch (e: any) {
           if (e && String(e.message).includes("LIMIT_REACHED")) {
-            await sendScreen(bot, chatId, fresh, { text: "Максимум 3 фото. Нажми «Готово»." });
+            await sendScreen(bot, chatId, fresh as DbUser, { text: "Максимум 3 фото. Нажми «Готово»." });
           } else {
-            await sendScreen(bot, chatId, fresh, { text: "Не удалось сохранить фото. Попробуйте ещё раз." });
+            await sendScreen(bot, chatId, fresh as DbUser, { text: "Не удалось сохранить фото. Попробуйте ещё раз." });
           }
         }
       }

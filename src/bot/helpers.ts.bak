@@ -57,8 +57,6 @@ export async function sendScreen(
     reply_markup?: any;                         // для обычных клавиатур
   }
 ) {
-  // Обновляем пользователя перед отправкой экрана для получения актуального last_screen_msg_id
-  const updatedUser = await ensureUser(chatId, user.username);
   const o = { ...(opts || {}) };
 
   const hasPhoto   = typeof o.photoFileId === "string" && o.photoFileId.length > 0;
@@ -74,14 +72,9 @@ export async function sendScreen(
   }
 
   // Один живой экран: удаляем предыдущее сообщение бота, если помним его id.
-  const lastId = updatedUser?.last_screen_msg_id;
+  const lastId = user?.last_screen_msg_id;
   if (lastId) {
-    try { 
-      await bot.deleteMessage(chatId, lastId); 
-    } catch (error) {
-      // Если не удалось удалить конкретное сообщение, попробуем очистить все сообщения бота
-      await clearBotMessages(bot, chatId);
-    }
+    try { await bot.deleteMessage(chatId, lastId); } catch {}
   }
 
   const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : o.reply_markup;
@@ -130,7 +123,7 @@ export async function sendScreen(
 
 // TTL «живого экрана» (по умолчанию 5 минут = 300000 мс)
 export const SCREEN_TTL_MS = (() => {
-  const env = Number(process.env.SCREEN_TTL_MS);
+  const env = Number(process.env.SCREEN_TTL_MS ?? process.env.SCREEN_TTL_MS_MS);
   return Number.isFinite(env) && env > 0 ? env : 5 * 60 * 1000;
 })();
 
@@ -144,26 +137,4 @@ export function isScreenExpired(user: DbUser, nowMs: number = Date.now()): boole
   const ts = Date.parse(iso);
   if (!Number.isFinite(ts)) return true;
   return (nowMs - ts) > SCREEN_TTL_MS;
-}
-
-// Принудительная очистка всех сообщений бота в чате (для случаев наложения клавиатур)
-export async function clearBotMessages(bot: TelegramBot, chatId: number): Promise<void> {
-  try {
-    // Получаем информацию о чате
-    const chat = await bot.getChat(chatId);
-    if (chat.type !== 'private') return; // Только для приватных чатов
-    
-    // Пытаемся удалить последние 20 сообщений (обычно этого достаточно)
-    let deletedCount = 0;
-    for (let i = 1; i <= 20; i++) {
-      try {
-        await bot.deleteMessage(chatId, (Date.now() / 1000) - i);
-        deletedCount++;
-      } catch {
-        // Игнорируем ошибки - некоторые сообщения могут не существовать
-      }
-    }
-  } catch (error) {
-    // Игнорируем ошибки при очистке сообщений
-  }
 }
