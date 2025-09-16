@@ -19,6 +19,70 @@ import { startRoulette, stopRoulette } from "../bot/roulette";
 import { Keyboards } from "../ui/keyboards";
 import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
+import { clearBotMessages } from "../bot/helpers";
+import { createUploadSession } from "../lib/uploadSession";
+import { buildProfileCaption } from "../bot/profile";
+
+// Безопасное получение URL файла с fallback на file_id
+async function getSafeFileUrl(bot: TelegramBot, fileId: string): Promise<string | null> {
+  try {
+    const fileUrl = await bot.getFileLink(fileId);
+    return fileUrl;
+  } catch (error: any) {
+    logger.warn("Failed to get file URL, will use file_id directly", {
+      action: 'get_file_url_failed',
+      fileId,
+      error: error?.message || 'Unknown error'
+    });
+    return null;
+  }
+}
+
+// Debounce для предотвращения конфликтов editMessageMedia
+const editMessageDebounce = new Map<number, NodeJS.Timeout>();
+
+function debounceEditMessage(chatId: number, callback: () => Promise<void>, delay: number = 100) {
+  // Отменяем предыдущий таймер для этого чата
+  const existingTimer = editMessageDebounce.get(chatId);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+  
+  // Устанавливаем новый таймер
+  const timer = setTimeout(async () => {
+    try {
+      await callback();
+    } catch (error: any) {
+      logger.warn("Debounced editMessageMedia failed", {
+        action: 'debounced_edit_message_failed',
+        chatId,
+        error: error?.message || 'Unknown error'
+      });
+    } finally {
+      editMessageDebounce.delete(chatId);
+    }
+  }, delay);
+  
+  editMessageDebounce.set(chatId, timer);
+}
+
+// Защита от двойных нажатий callback кнопок
+const callbackCooldown = new Map<string, number>();
+const CALLBACK_COOLDOWN_MS = 1000; // 1 секунда между нажатиями
+
+function isCallbackOnCooldown(callbackId: string): boolean {
+  const lastPress = callbackCooldown.get(callbackId);
+  if (!lastPress) return false;
+  
+  const now = Date.now();
+  const timeSinceLastPress = now - lastPress;
+  
+  return timeSinceLastPress < CALLBACK_COOLDOWN_MS;
+}
+
+function setCallbackCooldown(callbackId: string): void {
+  callbackCooldown.set(callbackId, Date.now());
+}
 
 async function ack(bot: TelegramBot, id: string, text?: string) {
   try { await bot.answerCallbackQuery(id, text ? { text, show_alert: false } : undefined); } catch {}
@@ -47,6 +111,13 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       await ack(bot, cq.id); 
       return; 
     }
+
+    // Защита от двойных нажатий
+    if (isCallbackOnCooldown(cq.id)) {
+      await ack(bot, cq.id, "⏳ Пожалуйста, подождите...");
+      return;
+    }
+    setCallbackCooldown(cq.id);
 
     const user = await ensureUser(chatId, cq.from?.username || null);
     if (!user || isScreenExpired(user)) {
@@ -214,6 +285,31 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       }
       return;
     }
+    if (verb === "photo_upload") {
+      await ack(bot, cq.id);
+      await query(`UPDATE users SET state='edit_photo_upload', updated_at=now() WHERE tg_id=$1`, [chatId]);
+      
+      const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
+      const c = r.rows[0]?.c ?? 0;
+      
+      if (c >= 3) {
+        await sendScreen(bot, chatId, user, {
+          text: "У вас уже максимальное количество фото (3/3).",
+          keyboard: Keyboards.prfPhotoActions()
+        });
+        return;
+      }
+      
+      // Создаем сессию загрузки
+      const maxPhotos = 3 - c; // Оставшиеся слоты
+      createUploadSession(chatId, maxPhotos);
+      
+      await sendScreen(bot, chatId, user, {
+        text: `📤 Загрузите фото из галереи\n\nПожалуйста, выберите и отправьте одно или несколько фото (максимум ${maxPhotos}).`,
+        keyboard: Keyboards.regPhotoUpload()
+      });
+      return;
+    }
     if (verb === "photo_done") {
       await ack(bot, cq.id);
       const r = await query<{ c: number }>(`SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1`, [chatId]);
@@ -223,6 +319,66 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       }
       await query(`UPDATE users SET state='idle', updated_at=now() WHERE tg_id=$1`, [chatId]);
       await showProfile(bot, chatId, user);
+      return;
+    }
+    if (verb === "photo_nav") {
+      await ack(bot, cq.id);
+      const idx = Number(id ?? 0);
+      const photos = await getAllPhotoIds(chatId);
+      if (!photos.length) {
+        await showProfile(bot, chatId, user);
+        return;
+      }
+      const total = photos.length;
+      const safeIdx = ((Number.isFinite(idx) ? idx : 0) % total + total) % total;
+
+      const caption = await buildProfileCaption(chatId);
+      
+      // Используем debounced editMessageMedia для предотвращения конфликтов
+      debounceEditMessage(chatId, async () => {
+        try {
+          // Получаем URL файла по file_id с fallback
+          const fileUrl = await getSafeFileUrl(bot, photos[safeIdx]);
+          const media = fileUrl || photos[safeIdx]; // Fallback на file_id если URL недоступен
+          
+          await bot.editMessageMedia({
+            type: "photo",
+            media,
+            caption,
+            parse_mode: "HTML"
+          }, {
+            chat_id: chatId,
+            message_id: user.last_screen_msg_id || undefined
+          });
+        } catch (error: any) {
+          // Если не удалось обновить (например, сообщение устарело или file_id истек), показываем заново
+          logger.warn("Failed to edit message media, falling back to sendScreen", {
+            action: 'edit_message_media_fallback',
+            chatId,
+            error: error?.message || 'Unknown error'
+          });
+          
+          // НЕ удаляем сообщение здесь - это сделает sendScreen
+          
+          // Если ошибка связана с file_id, отправляем текстовое сообщение
+          if (error?.message?.includes('FILE_REFERENCE_EXPIRED') || 
+              error?.message?.includes('wrong file_id') ||
+              error?.message?.includes('temporarily unavailable')) {
+            await sendScreen(bot, chatId, user, {
+              text: `${caption}\n\n📸 Фото временно недоступно`,
+              keyboard: Keyboards.profileWithNav(total, safeIdx),
+              parse_mode: "HTML",
+            });
+          } else {
+            await sendScreen(bot, chatId, user, {
+              photoFileId: photos[safeIdx],
+              caption,
+              keyboard: Keyboards.profileWithNav(total, safeIdx),
+              parse_mode: "HTML",
+            });
+          }
+        }
+      });
       return;
     }
 
@@ -240,28 +396,51 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
 
       const caption = await buildProfileCaption(chatId);
       
-      // Используем editMessageMedia для обновления только фото
-      try {
-        await bot.editMessageMedia({
-          type: "photo",
-          media: photos[safeIdx],
-          caption,
-          parse_mode: "HTML"
-        }, {
-          chat_id: chatId,
-          message_id: user.last_screen_msg_id || undefined,
-          reply_markup: { inline_keyboard: Keyboards.profileWithNav(total, safeIdx) }
-        });
-        return; // Успешно обновили, выходим
-      } catch (error) {
-        // Если не удалось обновить (например, сообщение устарело), показываем заново
-        await sendScreen(bot, chatId, user, {
-          photoFileId: photos[safeIdx],
-          caption,
-          keyboard: Keyboards.profileWithNav(total, safeIdx),
-          parse_mode: "HTML",
-        });
-      }
+      // Используем debounced editMessageMedia для предотвращения конфликтов
+      debounceEditMessage(chatId, async () => {
+        try {
+          // Получаем URL файла по file_id с fallback
+          const fileUrl = await getSafeFileUrl(bot, photos[safeIdx]);
+          const media = fileUrl || photos[safeIdx]; // Fallback на file_id если URL недоступен
+          
+          await bot.editMessageMedia({
+            type: "photo",
+            media,
+            caption,
+            parse_mode: "HTML"
+          }, {
+            chat_id: chatId,
+            message_id: user.last_screen_msg_id || undefined
+          });
+        } catch (error: any) {
+          // Если не удалось обновить (например, сообщение устарело или file_id истек), показываем заново
+          logger.warn("Failed to edit message media, falling back to sendScreen", {
+            action: 'edit_message_media_fallback',
+            chatId,
+            error: error?.message || 'Unknown error'
+          });
+          
+          // НЕ удаляем сообщение здесь - это сделает sendScreen
+          
+          // Если ошибка связана с file_id, отправляем текстовое сообщение
+          if (error?.message?.includes('FILE_REFERENCE_EXPIRED') || 
+              error?.message?.includes('wrong file_id') ||
+              error?.message?.includes('temporarily unavailable')) {
+            await sendScreen(bot, chatId, user, {
+              text: `${caption}\n\n📸 Фото временно недоступно`,
+              keyboard: Keyboards.profileWithNav(total, safeIdx),
+              parse_mode: "HTML",
+            });
+          } else {
+            await sendScreen(bot, chatId, user, {
+              photoFileId: photos[safeIdx],
+              caption,
+              keyboard: Keyboards.profileWithNav(total, safeIdx),
+              parse_mode: "HTML",
+            });
+          }
+        }
+      });
       return;
     }
 
@@ -352,28 +531,52 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
         dist_km: candidate?.dist_km || null 
       });
       
-      // Используем editMessageMedia для обновления только фото
-      try {
-        await bot.editMessageMedia({
-          type: "photo",
-          media: photos[safeIdx],
-          caption,
-          parse_mode: "HTML"
-        }, {
-          chat_id: chatId,
-          message_id: user.last_screen_msg_id || undefined,
-          reply_markup: { inline_keyboard: Keyboards.browseCardWithNav(currentCandidateId, total, safeIdx) }
-        });
-        return; // Успешно обновили, выходим
-      } catch (error) {
-        // Если не удалось обновить (например, сообщение устарело), показываем заново
-        await sendScreen(bot, chatId, user, {
-          photoFileId: photos[safeIdx],
-          caption,
-          keyboard: Keyboards.browseCardWithNav(currentCandidateId, total, safeIdx),
-          parse_mode: "HTML",
-        });
-      }
+      // Используем debounced editMessageMedia для предотвращения конфликтов
+      debounceEditMessage(chatId, async () => {
+        try {
+          // Получаем URL файла по file_id с fallback
+          const fileUrl = await getSafeFileUrl(bot, photos[safeIdx]);
+          const media = fileUrl || photos[safeIdx]; // Fallback на file_id если URL недоступен
+          
+          await bot.editMessageMedia({
+            type: "photo",
+            media,
+            caption,
+            parse_mode: "HTML"
+          }, {
+            chat_id: chatId,
+            message_id: user.last_screen_msg_id || undefined
+          });
+        } catch (error: any) {
+          // Если не удалось обновить (например, сообщение устарело или file_id истек), показываем заново
+          logger.warn("Failed to edit message media, falling back to sendScreen", {
+            action: 'edit_message_media_fallback',
+            chatId,
+            candidateId: currentCandidateId,
+            error: error?.message || 'Unknown error'
+          });
+          
+          // НЕ удаляем сообщение здесь - это сделает sendScreen
+          
+          // Если ошибка связана с file_id, отправляем текстовое сообщение
+          if (error?.message?.includes('FILE_REFERENCE_EXPIRED') || 
+              error?.message?.includes('wrong file_id') ||
+              error?.message?.includes('temporarily unavailable')) {
+            await sendScreen(bot, chatId, user, {
+              text: `${caption}\n\n📸 Фото временно недоступно`,
+              keyboard: Keyboards.browseCardWithNav(currentCandidateId, total, safeIdx),
+              parse_mode: "HTML",
+            });
+          } else {
+            await sendScreen(bot, chatId, user, {
+              photoFileId: photos[safeIdx],
+              caption,
+              keyboard: Keyboards.browseCardWithNav(currentCandidateId, total, safeIdx),
+              parse_mode: "HTML",
+            });
+          }
+        }
+      });
       return;
     }
     if (verb === "noop") {

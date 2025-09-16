@@ -7,10 +7,26 @@ import { Keyboards } from "../ui/keyboards";
 import { mkCb } from "../ui/cb";
 import { CB } from "../types";
 import { showProfile } from "./profile";
-import { importPhotosFromTelegramProfile, addPhotoSafely, checkTelegramProfilePhotos, getAllUserPhotos, getTelegramProfilePhotosForPreview, validatePhoto, getBestPhotoSize } from "./photo";
-import { createUploadSession, addPhotoToSession, getSessionPhotos, clearUploadSession, canAddMorePhotos, getPhotoCount, setProcessingFlag, isProcessing } from "../lib/uploadSession";
+import { importPhotosFromTelegramProfile, addPhotoSafely, getAllUserPhotos, getTelegramProfilePhotosForPreview, validatePhoto, getBestPhotoSize } from "./photo";
+import { createUploadSession, addPhotoToSession, getSessionPhotos, clearUploadSession, canAddMorePhotos, setProcessingFlag, isProcessing } from "../lib/uploadSession";
+import { logger } from "../lib/logger";
 import { reverseGeocode } from "../lib/geocode";
 import { hideReplyKeyboard } from "../lib/hideReply";
+
+// Безопасное получение URL файла с fallback на file_id
+async function getSafeFileUrl(bot: TelegramBot, fileId: string): Promise<string | null> {
+  try {
+    const fileUrl = await bot.getFileLink(fileId);
+    return fileUrl;
+  } catch (error: any) {
+    logger.warn("Failed to get file URL, will use file_id directly", {
+      action: 'get_file_url_failed',
+      fileId,
+      error: error?.message || 'Unknown error'
+    });
+    return null;
+  }
+}
 
 // === Валидация имени ===
 export function validateName(name: string): { valid: boolean; error?: string } {
@@ -163,7 +179,7 @@ export async function handleRegCity(bot: TelegramBot, msg: Message, user: DbUser
       const res = await reverseGeocode(latitude, longitude, "ru");
       const name = res.cityName && res.cityName.trim();
       if (name && name.length >= 2) suggest = name;
-    } catch (error) {
+    } catch (error: any) {
       // Логируем ошибку, но не прерываем процесс регистрации
       console.warn("Geocoding failed:", error);
     }
@@ -296,13 +312,13 @@ export async function handleRegAbout(bot: TelegramBot, msg: Message, user: DbUse
 // === Фото ===
 function buildRegPhotoText(loaded: number): string {
   return [
-    `Отправь 1–5 фото. Загружено: ${loaded}/5.`,
+    `Отправь 1–3 фото. Загружено: ${loaded}/3.`,
     `Или нажми «📥 Импорт из профиля».`,
     ``,
     `ℹ️ Импортирует только <b>видимые боту</b> фото профиля:`,
     `• Если в Telegram → Настройки → Конфиденциальность → Фото профиля ≠ «Все», бот фото не увидит;`,
     `• Видео-аватар <b>не</b> импортируется — только обычные фото;`,
-    `• Импортируем максимум 5 фото.`,
+    `• Импортируем максимум 3 фото.`,
   ].join("\n");
 }
 
@@ -403,18 +419,21 @@ export async function regImportPreviewNav(bot: TelegramBot, chatId: number, user
   const caption = `📥 Найдено ${profilePhotos.length} фото в вашем профиле\n\nПросмотрите фото и нажмите "Готово" для добавления в профиль.`;
   
   try {
+    // Получаем URL файла по file_id с fallback
+    const fileUrl = await getSafeFileUrl(bot, profilePhotos[safeIndex]);
+    const media = fileUrl || profilePhotos[safeIndex]; // Fallback на file_id если URL недоступен
+    
     await bot.editMessageMedia({
       type: "photo",
-      media: profilePhotos[safeIndex],
+      media,
       caption,
       parse_mode: "HTML"
     }, {
       chat_id: chatId,
-      message_id: user.last_screen_msg_id || undefined,
-      reply_markup: { inline_keyboard: Keyboards.regPhotoCarousel(profilePhotos.length, safeIndex) }
+      message_id: user.last_screen_msg_id || undefined
     });
     return; // Успешно обновили, выходим
-  } catch (error) {
+  } catch (error: any) {
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
@@ -498,18 +517,22 @@ export async function regUploadPreviewNav(bot: TelegramBot, chatId: number, user
   
   // Обновляем сообщение с новым фото
   try {
+    // Получаем URL файла по file_id с fallback
+    const fileUrl = await getSafeFileUrl(bot, photos[safeIndex]);
+    const media = fileUrl || photos[safeIndex]; // Fallback на file_id если URL недоступен
+    
     await bot.editMessageMedia({
       type: "photo",
-      media: photos[safeIndex],
+      media,
       caption: `📤 Загружено ${photos.length} фото\n\nВот как будет выглядеть ваш профиль. Просмотрите фото и нажмите "Готово" для завершения.\n\n📸 Фото ${safeIndex + 1} из ${photos.length}`,
       parse_mode: "HTML"
     }, {
       chat_id: chatId,
-      message_id: user.last_screen_msg_id || undefined,
-      reply_markup: { inline_keyboard: Keyboards.regPhotoCarousel(photos.length, safeIndex) }
+      message_id: user.last_screen_msg_id || undefined
+      // Убираем reply_markup чтобы не обновлять клавиатуру
     });
     return; // Успешно обновили, выходим
-  } catch (error) {
+  } catch (error: any) {
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
@@ -559,7 +582,7 @@ export async function regSaveUploadedPhotos(bot: TelegramBot, chatId: number, us
     try {
       await addPhotoSafely(chatId, fileId);
       savedCount++;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving photo:", error);
     }
   }
@@ -588,18 +611,21 @@ export async function regPhotoCarouselNav(bot: TelegramBot, chatId: number, user
   const caption = `📸 Просмотр фото ${safeIndex + 1}/${photos.length}\n\nПросмотрите фото и нажмите "Готово" для продолжения.`;
   
   try {
+    // Получаем URL файла по file_id с fallback
+    const fileUrl = await getSafeFileUrl(bot, photos[safeIndex]);
+    const media = fileUrl || photos[safeIndex]; // Fallback на file_id если URL недоступен
+    
     await bot.editMessageMedia({
       type: "photo",
-      media: photos[safeIndex],
+      media,
       caption,
       parse_mode: "HTML"
     }, {
       chat_id: chatId,
-      message_id: user.last_screen_msg_id || undefined,
-      reply_markup: { inline_keyboard: Keyboards.regPhotoCarousel(photos.length, safeIndex) }
+      message_id: user.last_screen_msg_id || undefined
     });
     return; // Успешно обновили, выходим
-  } catch (error) {
+  } catch (error: any) {
     // Если не удалось обновить, удаляем старое сообщение и отправляем новое
     if (user.last_screen_msg_id) {
       try {
@@ -627,7 +653,7 @@ export async function regPhotoImport(bot: TelegramBot, chatId: number, user: DbU
   
   if (currentCount >= 5) {
     await sendScreen(bot, chatId, user, {
-      text: "У вас уже максимальное количество фото (5/5).",
+      text: "У вас уже максимальное количество фото (3/3).",
       keyboard: Keyboards.regPhotoMethod()
     });
     return;
@@ -658,14 +684,14 @@ export async function regPhotoUpload(bot: TelegramBot, chatId: number, user: DbU
   
   if (c >= 5) {
     await sendScreen(bot, chatId, user, {
-      text: "У вас уже максимальное количество фото (5/5).",
+      text: "У вас уже максимальное количество фото (3/3).",
       keyboard: Keyboards.regPhotoMethod()
     });
     return;
   }
   
   // Создаем сессию загрузки
-  const maxPhotos = 5; // Максимум 5 фото для загрузки
+  const maxPhotos = 3; // Максимум 3 фото для загрузки
   createUploadSession(chatId, maxPhotos);
   
   // Обновляем существующее сообщение с инструкциями загрузки
@@ -718,7 +744,7 @@ export async function handleRegPhotoMessage(bot: TelegramBot, msg: Message, user
   // Проверяем, можно ли добавить еще фото
   if (!canAddMorePhotos(chatId)) {
     await sendScreen(bot, chatId, user, { 
-      text: "Максимальное количество фото: 5. Выберите самые лучшие!",
+      text: "Максимальное количество фото: 3. Выберите самые лучшие!",
       keyboard: Keyboards.regPhotoUpload()
     });
     return;

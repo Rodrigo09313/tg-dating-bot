@@ -30,7 +30,7 @@ export async function addPhotoSafely(
 
     const cntRes = await client.query<{ c: number }>("SELECT COUNT(*)::int AS c FROM photos WHERE user_id=$1", [userId]);
     const count = cntRes.rows[0]?.c ?? 0;
-    if (count >= 5) throw new Error("LIMIT_REACHED");
+    if (count >= 3) throw new Error("LIMIT_REACHED");
 
     const maxRes = await client.query<{ m: number }>("SELECT COALESCE(MAX(pos),0) AS m FROM photos WHERE user_id=$1", [userId]);
     const nextPos = (maxRes.rows[0]?.m ?? 0) + 1;
@@ -47,24 +47,9 @@ export async function addPhotoSafely(
   });
 }
 
-/**
- * Проверить наличие фото в профиле Telegram
- */
-export async function checkTelegramProfilePhotos(
-  bot: TelegramBot,
-  userId: number
-): Promise<{ hasPhotos: boolean; count: number }> {
-  try {
-    const prof = await bot.getUserProfilePhotos(userId, { limit: 100 });
-    const groups = prof.photos || [];
-    return { hasPhotos: groups.length > 0, count: groups.length };
-  } catch (error) {
-    return { hasPhotos: false, count: 0 };
-  }
-}
 
 /**
- * Импорт фото из профиля Telegram (до 5 шт), с опцией replace.
+ * Импорт фото из профиля Telegram (до 3 шт), с опцией replace.
  * Также под BIGINT-локом.
  */
 export async function importPhotosFromTelegramProfile(

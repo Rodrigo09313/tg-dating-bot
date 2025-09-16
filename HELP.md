@@ -1,26 +1,28 @@
 # перейти в проект
-
 cd ~/project/tg-dating-vip
-
 # проверить доступ и ремоут
-
 git remote -v
-
 # origin git@github.com:Rodrigo09313/tg-dating-vip.git (fetch/push)
 
 Открыть в Cursor
 cd ~/project/tg-dating-bot
 cursor .
-
 # из WSL (внутри папки проекта)
-
 cursor .
 
+# Запуск базы данных
+docker compose up -d db
+
+# Установка зависимостей
+npm install
+
+# Разработка
+npm run dev
+
+# Продакшн
+npm run build && npm start
+
 Ежедневная работа (git)
-
-
-
-
 # Клонируем
 git clone https://github.com/<your_user>/tg-dating-bot.git
 cd tg-dating-bot

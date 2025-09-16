@@ -21,7 +21,7 @@ const SESSION_TTL = 30 * 60 * 1000;
 /**
  * Создать новую сессию загрузки
  */
-export function createUploadSession(userId: number, maxPhotos: number = 5): UploadSession {
+export function createUploadSession(userId: number, maxPhotos: number = 3): UploadSession {
   const session: UploadSession = {
     userId,
     photos: [],
@@ -67,21 +67,6 @@ export function addPhotoToSession(userId: number, fileId: string): { success: bo
   return { success: true };
 }
 
-/**
- * Удалить фото из сессии
- */
-export function removePhotoFromSession(userId: number, fileId: string): boolean {
-  const session = getUploadSession(userId);
-  if (!session) return false;
-  
-  const index = session.photos.indexOf(fileId);
-  if (index > -1) {
-    session.photos.splice(index, 1);
-    return true;
-  }
-  
-  return false;
-}
 
 /**
  * Очистить сессию загрузки
@@ -134,14 +119,3 @@ export function isProcessing(userId: number): boolean {
   return session?.isProcessing || false;
 }
 
-/**
- * Очистить все устаревшие сессии
- */
-export function cleanupExpiredSessions(): void {
-  const now = Date.now();
-  for (const [userId, session] of uploadSessions.entries()) {
-    if (now - session.createdAt > SESSION_TTL) {
-      uploadSessions.delete(userId);
-    }
-  }
-}

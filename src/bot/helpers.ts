@@ -4,6 +4,7 @@
 
 import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api";
 import { query } from "../db";
+import { logger } from "../lib/logger";
 
 // Тип пользователя как мы его обычно читаем из БД.
 // Поля минимально необходимые для экранов/состояний.
@@ -79,10 +80,22 @@ export async function sendScreen(
     try { 
       await bot.deleteMessage(chatId, lastId); 
     } catch (error) {
-      // Если не удалось удалить конкретное сообщение, попробуем очистить все сообщения бота
-      await clearBotMessages(bot, chatId);
+      // Если не удалось удалить конкретное сообщение, очищаем все сообщения бота
+      logger.warn("Failed to delete specific message, clearing all bot messages", {
+        action: 'delete_message_failed',
+        chatId,
+        lastId,
+        error: error instanceof Error ? error : new Error(String(error))
+      });
+      // Не очищаем все сообщения - это создает проблемы
+      logger.warn("Message deletion failed, but continuing without clearing all messages", {
+        action: 'message_deletion_failed_continue',
+        chatId,
+        lastId
+      });
     }
   }
+  // Убираем принудительную очистку - она создает проблемы
 
   const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : o.reply_markup;
 
@@ -92,12 +105,47 @@ export async function sendScreen(
     | (TelegramBot.Message & { message_id: number });
 
   if (hasPhoto) {
-    sent = await bot.sendPhoto(chatId, o.photoFileId as string, {
-      caption: hasCaption ? o.caption : (o.text || undefined),
-      parse_mode: o.parse_mode || "HTML",
-      reply_markup,
-      disable_notification: true,
-    } as any);
+    try {
+      // Сначала пытаемся получить URL файла
+      const fileUrl = await bot.getFileLink(o.photoFileId as string);
+      sent = await bot.sendPhoto(chatId, fileUrl, {
+        caption: hasCaption ? o.caption : (o.text || undefined),
+        parse_mode: o.parse_mode || "HTML",
+        reply_markup,
+        disable_notification: true,
+      } as any);
+    } catch (error: any) {
+      // Если не удалось получить URL или отправить по URL, используем file_id
+      logger.warn("Failed to send photo with URL, falling back to file_id", {
+        action: 'send_photo_fallback',
+        chatId,
+        error: error?.message || 'Unknown error'
+      });
+      
+      try {
+        sent = await bot.sendPhoto(chatId, o.photoFileId as string, {
+          caption: hasCaption ? o.caption : (o.text || undefined),
+          parse_mode: o.parse_mode || "HTML",
+          reply_markup,
+          disable_notification: true,
+        } as any);
+      } catch (fileIdError: any) {
+        // Если и file_id не работает (например, FILE_REFERENCE_EXPIRED), отправляем текстовое сообщение
+        logger.warn("Failed to send photo with file_id, falling back to text message", {
+          action: 'send_photo_file_id_fallback',
+          chatId,
+          error: fileIdError?.message || 'Unknown error'
+        });
+        
+        const fallbackText = hasCaption ? o.caption : (o.text || "Фото временно недоступно");
+        sent = await bot.sendMessage(chatId, fallbackText || "Фото временно недоступно", {
+          parse_mode: o.parse_mode || "HTML",
+          reply_markup,
+          disable_web_page_preview: true,
+          disable_notification: true,
+        } as any);
+      }
+    }
   } else {
     sent = await bot.sendMessage(chatId, (o.text as string), {
       parse_mode: o.parse_mode || "HTML",
@@ -163,7 +211,17 @@ export async function clearBotMessages(bot: TelegramBot, chatId: number): Promis
         // Игнорируем ошибки - некоторые сообщения могут не существовать
       }
     }
+    
+    logger.info("Cleared bot messages", {
+      action: 'clear_bot_messages',
+      chatId,
+      deletedCount
+    });
   } catch (error) {
-    // Игнорируем ошибки при очистке сообщений
+    logger.warn("Failed to clear bot messages", {
+      action: 'clear_bot_messages_failed',
+      chatId,
+      error: error instanceof Error ? error : new Error(String(error))
+    });
   }
 }

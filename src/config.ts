@@ -11,4 +11,3 @@ export const DATABASE_URL =
 export const GEOCODER_PROVIDER = (process.env.GEOCODER_PROVIDER || "yandex").toLowerCase();
 export const GEOCODER_EMAIL = process.env.GEOCODER_EMAIL || "";
 export const YANDEX_GEOCODER_KEY = process.env.YANDEX_GEOCODER_KEY || "";
-export const YANDEX_ALLOW_STORE = String(process.env.YANDEX_ALLOW_STORE || "false").toLowerCase() === "true";

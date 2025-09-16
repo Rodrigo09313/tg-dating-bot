@@ -18,6 +18,24 @@ import { showProfile } from "./bot/profile";
 import { TXT } from "./ui/text";
 import { logger } from "./lib/logger";
 import { ErrorHandler } from "./lib/errorHandler";
+
+// Защита от двойных нажатий для сообщений
+const messageCooldown = new Map<number, number>();
+const MESSAGE_COOLDOWN_MS = 2000; // 2 секунды между сообщениями
+
+function isMessageOnCooldown(chatId: number): boolean {
+  const lastMessage = messageCooldown.get(chatId);
+  if (!lastMessage) return false;
+  
+  const now = Date.now();
+  const timeSinceLastMessage = now - lastMessage;
+  
+  return timeSinceLastMessage < MESSAGE_COOLDOWN_MS;
+}
+
+function setMessageCooldown(chatId: number): void {
+  messageCooldown.set(chatId, Date.now());
+}
 import { mkCb } from "./ui/cb";
 import { CB } from "./types";
 
@@ -145,6 +163,18 @@ async function bootstrap() {
     if (msg.text && msg.text.startsWith("/")) return;
 
     const chatId = msg.chat.id;
+    
+    // Защита от двойных нажатий для сообщений
+    if (isMessageOnCooldown(chatId)) {
+      logger.warn("Message ignored due to cooldown", {
+        action: 'message_cooldown',
+        chatId,
+        userId: msg.from.id
+      });
+      return;
+    }
+    setMessageCooldown(chatId);
+    
     await ensureUser(chatId, msg.from.username);
     const fresh = await loadUser(chatId);
     const state = fresh?.state as string | null;
@@ -211,6 +241,14 @@ async function bootstrap() {
         await query(`UPDATE users SET about=$2, state='idle', updated_at=now() WHERE tg_id=$1`, [chatId, about || null]);
         const u = await ensureUser(chatId, msg.from.username);
         await showProfile(bot, chatId, u);
+      }
+      return;
+    }
+
+    if (state === "edit_photo_upload") {
+      if (msg.photo && msg.photo.length) {
+        await handleRegPhotoMessage(bot, msg, fresh as DbUser);
+        return;
       }
       return;
     }

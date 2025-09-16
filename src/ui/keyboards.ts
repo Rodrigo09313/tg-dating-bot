@@ -201,6 +201,7 @@ export const Keyboards = {
   prfPhotoActions(): InlineKeyboardButton[][] {
     return [
       [{ text: BUTTONS.IMPORT_PHOTOS, callback_data: mkCb(CB.PRF, "photo_import") }],
+      [{ text: "📤 Загрузить фото", callback_data: mkCb(CB.PRF, "photo_upload") }],
       [{ text: BUTTONS.DONE, callback_data: mkCb(CB.PRF, "photo_done") }]
     ];
   },
