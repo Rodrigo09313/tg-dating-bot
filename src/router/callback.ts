@@ -12,11 +12,11 @@ import {
 } from "../bot/registration";
 import { showProfile, getAllPhotoIds, buildProfileCaption } from "../bot/profile";
 import { importPhotosFromTelegramProfile } from "../bot/photo";
-import { showFavoritesList, addToFavorites, removeFromFavorites } from "../bot/favorites";
+import { showFavoritesList, addToFavorites, removeFromFavorites, showFavoritesCard } from "../bot/favorites";
 import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts } from "../bot/contacts";
 import { reportUser } from "../bot/reports";
 import { startRoulette, stopRoulette } from "../bot/roulette";
-import { Keyboards } from "../ui/keyboards";
+import { Keyboards, BUTTONS } from "../ui/keyboards";
 import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
 import { clearBotMessages } from "../bot/helpers";
@@ -139,7 +139,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
 
     const { prefix, verb, id } = parsed;
     
-    logger.userAction(`callback_${prefix}_${verb}`, chatId, chatId, { id });
+    logger.userAction(`callback_${prefix}_${verb}`, { chatId, id });
 
   // ===== SYS =====
   if (prefix === "sys") {
@@ -482,7 +482,7 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     const { browseShowNext, getCandidatePhotos, buildCardCaption, getCurrentBrowseCandidate } = await import("../bot/browse");
     if (verb === "start" || verb === "next") {
       await ack(bot, cq.id);
-      logger.userAction('browse_start', chatId, chatId);
+      logger.userAction('browse_start', { chatId });
       await browseShowNext(bot, chatId, user);
       return;
     }
@@ -596,9 +596,66 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       await showFavoritesList(bot, chatId, user);
       return;
     }
-    if (verb === "add" && id) {
+    if (verb === "next") {
       await ack(bot, cq.id);
+      const idx = id ? Number(id) : 0;
+      await showFavoritesCard(bot, chatId, user, Number.isFinite(idx) ? idx : 0);
+      return;
+    }
+    if (verb === "add" && id) {
+      await ack(bot, cq.id, "✅ Добавлено в избранное");
       await addToFavorites(bot, chatId, user, Number(id));
+
+      // Обновляем текущую клавиатуру: заменяем кнопку "В избранное" на "В избранном"
+      try {
+        if (cq.message?.message_id) {
+          const candidateId = Number(id);
+          const newKb = [
+            [
+              { text: BUTTONS.NEXT, callback_data: mkCb(CB.BRW, "next") },
+              { text: BUTTONS.WRITE, callback_data: mkCb(CB.CR, "req", candidateId) }
+            ],
+            [
+              { text: BUTTONS.REPORT, callback_data: mkCb(CB.REP, "card", candidateId) },
+              { text: "✅ В избранном", callback_data: mkCb(CB.FAV, "remove", candidateId) }
+            ],
+            [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
+          ] as any;
+          await bot.editMessageReplyMarkup({ inline_keyboard: newKb } as any, {
+            chat_id: chatId,
+            message_id: cq.message.message_id
+          } as any);
+        }
+      } catch {}
+
+      return;
+    }
+    if (verb === "remove" && id) {
+      await ack(bot, cq.id, "❌ Удалено из избранного");
+      await removeFromFavorites(bot, chatId, user, Number(id));
+
+      // Обновляем текущую клавиатуру: возвращаем кнопку "В избранное"
+      try {
+        if (cq.message?.message_id) {
+          const candidateId = Number(id);
+          const newKb = [
+            [
+              { text: BUTTONS.NEXT, callback_data: mkCb(CB.BRW, "next") },
+              { text: BUTTONS.WRITE, callback_data: mkCb(CB.CR, "req", candidateId) }
+            ],
+            [
+              { text: BUTTONS.REPORT, callback_data: mkCb(CB.REP, "card", candidateId) },
+              { text: BUTTONS.ADD_FAVORITE, callback_data: mkCb(CB.FAV, "add", candidateId) }
+            ],
+            [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
+          ] as any;
+          await bot.editMessageReplyMarkup({ inline_keyboard: newKb } as any, {
+            chat_id: chatId,
+            message_id: cq.message.message_id
+          } as any);
+        }
+      } catch {}
+
       return;
     }
     if (verb === "remove" && id) {
@@ -622,8 +679,11 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       return;
     }
     if (verb === "req" && id) {
-      await ack(bot, cq.id);
-      await sendContactRequest(bot, chatId, user, Number(id));
+      const status = await sendContactRequest(bot, chatId, user, Number(id));
+      if (status === 'created') await ack(bot, cq.id, '✅ Запрос отправлен');
+      else if (status === 'exists') await ack(bot, cq.id, 'ℹ️ Запрос уже отправлен');
+      else if (status === 'not_active') await ack(bot, cq.id, 'Пользователь недоступен');
+      else await ack(bot, cq.id, 'Не удалось отправить запрос');
       return;
     }
     if (verb === "accept" && id) {

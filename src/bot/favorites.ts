@@ -13,59 +13,69 @@ import { CB } from "../types";
 
 export async function showFavoritesList(bot: TelegramBot, chatId: number, user: DbUser) {
   try {
-    logger.userAction('show_favorites_list', chatId, chatId);
-    
-    const favorites = await query<{
-      tg_id: number;
-      name: string | null;
-      age: number | null;
-      city_name: string | null;
-      about: string | null;
-      file_id: string | null;
-    }>(`
-      SELECT u.tg_id, u.name, u.age, u.city_name, u.about,
-             (SELECT p.file_id FROM photos p 
-              WHERE p.user_id = u.tg_id 
-              ORDER BY p.is_main DESC, p.pos ASC LIMIT 1) as file_id
-      FROM users u
-      INNER JOIN contacts c ON (
-        (c.a_id = $1 AND c.b_id = u.tg_id) OR 
-        (c.b_id = $1 AND c.a_id = u.tg_id)
-      )
-      WHERE u.status = 'active' AND u.tg_id != $1
-      ORDER BY c.created_at DESC
-      LIMIT 20
-    `, [chatId]);
-
-    if (favorites.rows.length === 0) {
-      await sendScreen(bot, chatId, user, {
-        text: "У вас пока нет избранных контактов.\n\nНачните знакомства, чтобы найти интересных людей!",
-        keyboard: Keyboards.favoritesList()
-      });
-      return;
-    }
-
-    // Показываем первого из списка
-    const first = favorites.rows[0];
-    const caption = buildUserCaption(first);
-    
-    await sendScreen(bot, chatId, user, {
-      photoFileId: first.file_id || undefined,
-      text: first.file_id ? undefined : caption,
-      caption: first.file_id ? caption : undefined,
-      keyboard: [
-        [{ text: "💞 Найти ещё", callback_data: mkCb(CB.BRW, "start") }],
-        [{ text: "🏠 В меню", callback_data: mkCb(CB.SYS, "menu") }]
-      ]
-    });
-
+    logger.userAction('show_favorites_list', { chatId });
+    await showFavoritesCard(bot, chatId, user, 0);
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'show_favorites_list');
     await sendScreen(bot, chatId, user, {
       text: "Не удалось загрузить список избранных. Попробуйте позже.",
-      keyboard: Keyboards.favoritesList()
+      keyboard: Keyboards.backToMenu()
     });
   }
+}
+
+export async function showFavoritesCard(bot: TelegramBot, chatId: number, user: DbUser, index: number = 0) {
+  // Получаем избранных пользователей (контакты)
+  const favorites = await query<{
+    tg_id: number;
+    name: string | null;
+    age: number | null;
+    city_name: string | null;
+    about: string | null;
+    file_id: string | null;
+  }>(
+    `SELECT u.tg_id, u.name, u.age, u.city_name, u.about,
+            (SELECT p.file_id FROM photos p 
+             WHERE p.user_id = u.tg_id 
+             ORDER BY p.is_main DESC, p.pos ASC LIMIT 1) as file_id
+     FROM users u
+     INNER JOIN contacts c ON (
+       (c.a_id = $1 AND c.b_id = u.tg_id) OR 
+       (c.b_id = $1 AND c.a_id = u.tg_id)
+     )
+     WHERE u.status = 'active' AND u.tg_id != $1
+     ORDER BY c.created_at DESC
+     LIMIT 50`,
+    [chatId]
+  );
+
+  if (favorites.rows.length === 0) {
+    await sendScreen(bot, chatId, user, {
+      text: "У вас пока нет избранных контактов.",
+      keyboard: [
+        [{ text: "◀️ Назад", callback_data: mkCb(CB.PRF, "open") }]
+      ]
+    });
+    return;
+  }
+
+  const safeIndex = Number.isFinite(index) && index >= 0 ? index : 0;
+  const i = safeIndex % favorites.rows.length;
+  const row = favorites.rows[i];
+  const caption = buildUserCaption(row);
+
+  await sendScreen(bot, chatId, user, {
+    photoFileId: row.file_id || undefined,
+    text: row.file_id ? undefined : caption,
+    caption: row.file_id ? caption : undefined,
+    keyboard: [
+      [
+        { text: "💌 Написать",   callback_data: mkCb(CB.CR, "req", row.tg_id) },
+        { text: "💞 Следующий",  callback_data: mkCb(CB.FAV, "next", i + 1) }
+      ],
+      [ { text: "◀️ Назад", callback_data: mkCb(CB.PRF, "open") } ]
+    ]
+  });
 }
 
 export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbUser, targetId: number) {
@@ -79,7 +89,7 @@ export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbU
     );
     
     if (targetUser.rows.length === 0) {
-      await sendScreen(bot, chatId, user, { text: "Пользователь не найден или неактивен." });
+      // Тихое завершение: пользователь пропал/неактивен — сообщим во всплывашке из хэндлера
       return;
     }
 
@@ -96,11 +106,11 @@ export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbU
       );
     `, [chatId, targetId]);
 
-    await sendScreen(bot, chatId, user, { text: "✅ Добавлено в избранное!" });
+    // Тихий режим: не меняем текущий экран
     
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'add_to_favorites');
-    await sendScreen(bot, chatId, user, { text: "Не удалось добавить в избранное. Попробуйте позже." });
+    // Ошибка — оставляем экран, всплывашку отдаёт хэндлер при необходимости
   }
 }
 
@@ -112,12 +122,11 @@ export async function removeFromFavorites(bot: TelegramBot, chatId: number, user
       DELETE FROM contacts 
       WHERE (a_id = $1 AND b_id = $2) OR (a_id = $2 AND b_id = $1)
     `, [chatId, targetId]);
-
-    await sendScreen(bot, chatId, user, { text: "❌ Удалено из избранного." });
+    // Тихий режим: не меняем текущий экран
     
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'remove_from_favorites');
-    await sendScreen(bot, chatId, user, { text: "Не удалось удалить из избранного. Попробуйте позже." });
+    // Ошибка — оставляем экран, всплывашку отдаёт хэндлер при необходимости
   }
 }
 

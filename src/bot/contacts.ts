@@ -15,7 +15,7 @@ import { browseShowNext } from "./browse";
 
 export async function showContactRequestsList(bot: TelegramBot, chatId: number, user: DbUser) {
   try {
-    logger.userAction('show_contact_requests_list', chatId, chatId);
+    logger.userAction('show_contact_requests_list', { chatId });
     
     // Получаем входящие запросы
     const incoming = await query<{
@@ -75,7 +75,7 @@ export async function showContactRequestsList(bot: TelegramBot, chatId: number, 
 
 export async function showAcceptedContacts(bot: TelegramBot, chatId: number, user: DbUser, page: number = 0) {
   try {
-    logger.userAction('show_accepted_contacts', chatId, chatId, { page });
+    logger.userAction('show_accepted_contacts', { chatId, page });
 
     const PAGE_SIZE = 5;
     const offset = Math.max(0, page) * PAGE_SIZE;
@@ -136,9 +136,15 @@ export async function showAcceptedContacts(bot: TelegramBot, chatId: number, use
   }
 }
 
-export async function sendContactRequest(bot: TelegramBot, chatId: number, user: DbUser, targetId: number) {
+// ТИХИЙ режим: возвращаем статус для отправителя, не меняем его экран
+export async function sendContactRequest(
+  bot: TelegramBot,
+  chatId: number,
+  user: DbUser,
+  targetId: number
+): Promise<'created' | 'exists' | 'not_active' | 'error'> {
   try {
-    logger.userAction('send_contact_request', chatId, chatId, { targetId });
+    logger.userAction('send_contact_request', { chatId, targetId });
     
     // Проверяем, что пользователь существует и активен
     const targetUser = await query<{ tg_id: number }>(
@@ -147,8 +153,7 @@ export async function sendContactRequest(bot: TelegramBot, chatId: number, user:
     );
     
     if (targetUser.rows.length === 0) {
-      await bot.sendMessage(chatId, "Пользователь не найден или неактивен.");
-      return;
+      return 'not_active';
     }
 
     // Проверяем, нет ли уже запроса
@@ -158,10 +163,7 @@ export async function sendContactRequest(bot: TelegramBot, chatId: number, user:
     );
     
     if (existing.rows.length > 0) {
-      await bot.sendMessage(chatId, "Запрос уже отправлен. Ожидайте ответа.");
-      // Возвращаемся к просмотру анкет
-      await browseShowNext(bot, chatId, user);
-      return;
+      return 'exists';
     }
 
     // Создаем запрос и получаем его id
@@ -198,20 +200,16 @@ export async function sendContactRequest(bot: TelegramBot, chatId: number, user:
       keyboard: Keyboards.requestIncoming(crId, chatId)
     });
 
-    await bot.sendMessage(chatId, "✅ Запрос на контакт отправлен!");
-    
-    // Возвращаемся к просмотру анкет
-    await browseShowNext(bot, chatId, user);
-    
+    return 'created';
   } catch (error) {
     await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'send_contact_request');
-    await bot.sendMessage(chatId, "Не удалось отправить запрос. Попробуйте позже.");
+    return 'error';
   }
 }
 
 export async function acceptContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number, sourceMessageId?: number) {
   try {
-    logger.userAction('accept_contact_request', chatId, chatId, { requestId });
+    logger.userAction('accept_contact_request', { chatId, requestId });
     
     // Получаем информацию о запросе
     const request = await query<{
@@ -318,7 +316,7 @@ export async function acceptContactRequest(bot: TelegramBot, chatId: number, use
 
 export async function declineContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number, sourceMessageId?: number) {
   try {
-    logger.userAction('decline_contact_request', chatId, chatId, { requestId });
+    logger.userAction('decline_contact_request', { chatId, requestId });
     
     // Обновляем статус запроса
     await query(`
