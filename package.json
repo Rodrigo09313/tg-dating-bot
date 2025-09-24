@@ -6,7 +6,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
-    "db:migrate": "ts-node-dev --transpile-only src/tools/migrate.ts"
+    "db:migrate": "ts-node-dev --transpile-only src/tools/migrate.ts",
+    "tools:clear": "ts-node-dev --transpile-only src/tools/clearInteractions.ts"
   },
   "keywords": [],
   "author": "",

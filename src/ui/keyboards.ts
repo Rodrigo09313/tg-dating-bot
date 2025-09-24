@@ -11,6 +11,7 @@ export const BUTTONS = {
   FIND_PAIR: "💞 Найти пару",
   FAVORITES: "⭐ Избранное", 
   REQUESTS: "💌 Мои запросы",
+  ACCEPTED: "✅ Принятые",
   PROFILE: "👤 Профиль",
   HELP: "❓ Помощь",
   MENU: "🏠 В меню",
@@ -79,6 +80,7 @@ export const Keyboards = {
         { text: BUTTONS.FAVORITES, callback_data: mkCb(CB.FAV, "list") },
         { text: BUTTONS.REQUESTS, callback_data: mkCb(CB.CR, "list") }
       ],
+      [ { text: BUTTONS.ACCEPTED, callback_data: mkCb(CB.CR, "accepted") } ],
       [{ text: BUTTONS.EDIT_PROFILE, callback_data: mkCb(CB.PRF, "edit") }],
       [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
     ];
@@ -245,14 +247,14 @@ export const Keyboards = {
   },
 
   // Входящие запросы
-  requestIncoming(crId: number): InlineKeyboardButton[][] {
+  requestIncoming(crId: number, fromUserId: number): InlineKeyboardButton[][] {
     return [
       [
         { text: BUTTONS.ACCEPT, callback_data: mkCb(CB.CR, "accept", crId) },
         { text: BUTTONS.DECLINE, callback_data: mkCb(CB.CR, "decline", crId) }
       ],
       [
-        { text: BUTTONS.ADD_FAVORITE, callback_data: mkCb(CB.FAV, "add", crId) },
+        { text: BUTTONS.ADD_FAVORITE, callback_data: mkCb(CB.FAV, "add", fromUserId) },
         { text: BUTTONS.REPORT, callback_data: mkCb(CB.REP, "request", crId) }
       ]
     ];

@@ -22,6 +22,22 @@ npm run dev
 # Продакшн
 npm run build && npm start
 
+обавил утилиту для очистки истории взаимодействий, не трогая профили.
+Как запустить:
+Очистить всё (заявки и контакты):
+Очистить только для одного пользователя (по tg_id):
+Что делает:
+Удаляет записи из contact_requests и contacts.
+При указании USER_ID чистит только входящие/исходящие заявки и контакты этого пользователя.
+Профили (users, photos) не затрагиваются.
+Файлы:
+src/tools/clearInteractions.ts
+package.json (скрипт tools:clear)
+
+
+
+
+
 Ежедневная работа (git)
 # Клонируем
 git clone https://github.com/<your_user>/tg-dating-bot.git

@@ -13,7 +13,7 @@ import {
 import { showProfile, getAllPhotoIds, buildProfileCaption } from "../bot/profile";
 import { importPhotosFromTelegramProfile } from "../bot/photo";
 import { showFavoritesList, addToFavorites, removeFromFavorites } from "../bot/favorites";
-import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest } from "../bot/contacts";
+import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts } from "../bot/contacts";
 import { reportUser } from "../bot/reports";
 import { startRoulette, stopRoulette } from "../bot/roulette";
 import { Keyboards } from "../ui/keyboards";
@@ -609,6 +609,11 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     if (verb === "list") {
       await ack(bot, cq.id);
       await showContactRequestsList(bot, chatId, user);
+      return;
+    }
+    if (verb === "accepted") {
+      await ack(bot, cq.id);
+      await showAcceptedContacts(bot, chatId, user);
       return;
     }
     if (verb === "req" && id) {

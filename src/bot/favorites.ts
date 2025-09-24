@@ -83,11 +83,17 @@ export async function addToFavorites(bot: TelegramBot, chatId: number, user: DbU
       return;
     }
 
-    // Добавляем в избранное (создаем контакт)
+    // Добавляем в избранное (создаём контакт), без ON CONFLICT
     await query(`
+      WITH norm AS (
+        SELECT LEAST($1::bigint, $2::bigint) AS a, GREATEST($1::bigint, $2::bigint) AS b
+      )
       INSERT INTO contacts (a_id, b_id, created_at)
-      VALUES (LEAST($1, $2), GREATEST($1, $2), now())
-      ON CONFLICT (a_id, b_id) DO NOTHING
+      SELECT a, b, now()
+      FROM norm
+      WHERE NOT EXISTS (
+        SELECT 1 FROM contacts c WHERE (c.a_id = (SELECT a FROM norm) AND c.b_id = (SELECT b FROM norm))
+      );
     `, [chatId, targetId]);
 
     await sendScreen(bot, chatId, user, { text: "✅ Добавлено в избранное!" });
