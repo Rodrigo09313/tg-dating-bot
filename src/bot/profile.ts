@@ -65,3 +65,11 @@ export async function showProfile(bot: TelegramBot, chatId: number, user: DbUser
     });
   }
 }
+
+export async function showContactsMenu(bot: TelegramBot, chatId: number, user: DbUser) {
+  await sendScreen(bot, chatId, user, {
+    text: "Выберите раздел контактов:",
+    keyboard: Keyboards.contactsMenu(),
+    parse_mode: "HTML"
+  });
+}

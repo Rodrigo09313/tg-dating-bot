@@ -12,7 +12,9 @@ export const BUTTONS = {
   FAVORITES: "⭐ Избранное", 
   REQUESTS: "💌 Мои запросы",
   ACCEPTED: "✅ Принятые",
+  DECLINED: "❌ Отклонённые",
   PROFILE: "👤 Профиль",
+  CONTACTS: "👥 Контакты",
   HELP: "❓ Помощь",
   MENU: "🏠 В меню",
   
@@ -76,13 +78,20 @@ export const Keyboards = {
   // Профиль
   profile(): InlineKeyboardButton[][] {
     return [
-      [
-        { text: BUTTONS.FAVORITES, callback_data: mkCb(CB.FAV, "list") },
-        { text: BUTTONS.REQUESTS, callback_data: mkCb(CB.CR, "list") }
-      ],
-      [ { text: BUTTONS.ACCEPTED, callback_data: mkCb(CB.CR, "accepted") } ],
+      [{ text: BUTTONS.CONTACTS, callback_data: mkCb(CB.PRF, "contacts") }],
       [{ text: BUTTONS.EDIT_PROFILE, callback_data: mkCb(CB.PRF, "edit") }],
       [{ text: BUTTONS.MENU, callback_data: mkCb(CB.SYS, "menu") }]
+    ];
+  },
+
+  // Меню раздела контактов
+  contactsMenu(): InlineKeyboardButton[][] {
+    return [
+      [{ text: BUTTONS.FAVORITES, callback_data: mkCb(CB.FAV, "list") }],
+      [{ text: BUTTONS.REQUESTS,  callback_data: mkCb(CB.CR,  "list") }],
+      [{ text: BUTTONS.ACCEPTED,  callback_data: mkCb(CB.CR,  "accepted") }],
+      [{ text: BUTTONS.DECLINED,  callback_data: mkCb(CB.CR,  "declined") }],
+      [{ text: "◀️ Назад", callback_data: mkCb(CB.PRF, "open") }]
     ];
   },
 

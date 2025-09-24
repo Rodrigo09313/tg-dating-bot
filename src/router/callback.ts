@@ -10,10 +10,10 @@ import { CB } from "../types";
 import {
   regAskSeek, regAskCity, regAskPhoto, regShowPreview, regConfirm
 } from "../bot/registration";
-import { showProfile, getAllPhotoIds, buildProfileCaption } from "../bot/profile";
+import { showProfile, getAllPhotoIds, buildProfileCaption, showContactsMenu } from "../bot/profile";
 import { importPhotosFromTelegramProfile } from "../bot/photo";
 import { showFavoritesList, addToFavorites, removeFromFavorites, showFavoritesCard } from "../bot/favorites";
-import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts } from "../bot/contacts";
+import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts, showDeclinedContacts } from "../bot/contacts";
 import { reportUser } from "../bot/reports";
 import { startRoulette, stopRoulette } from "../bot/roulette";
 import { Keyboards, BUTTONS } from "../ui/keyboards";
@@ -249,6 +249,11 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     if (verb === "open") {
       await ack(bot, cq.id);
       await showProfile(bot, chatId, user);
+      return;
+    }
+    if (verb === "contacts") {
+      await ack(bot, cq.id);
+      await showContactsMenu(bot, chatId, user);
       return;
     }
     if (verb === "edit") {
@@ -676,6 +681,12 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       await ack(bot, cq.id);
       const page = id ? Number(id) : 0;
       await showAcceptedContacts(bot, chatId, user, Number.isFinite(page) ? page : 0);
+      return;
+    }
+    if (verb === "declined") {
+      await ack(bot, cq.id);
+      const page = id ? Number(id) : 0;
+      await showDeclinedContacts(bot, chatId, user, Number.isFinite(page) ? page : 0);
       return;
     }
     if (verb === "req" && id) {

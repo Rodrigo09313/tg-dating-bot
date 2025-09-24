@@ -136,6 +136,69 @@ export async function showAcceptedContacts(bot: TelegramBot, chatId: number, use
   }
 }
 
+export async function showDeclinedContacts(bot: TelegramBot, chatId: number, user: DbUser, page: number = 0) {
+  try {
+    logger.userAction('show_declined_contacts', { chatId, page });
+
+    const PAGE_SIZE = 5;
+    const offset = Math.max(0, page) * PAGE_SIZE;
+
+    // Всего отклонённых запросов
+    const totalRes = await query<{ c: number }>(
+      `SELECT COUNT(*)::int AS c FROM contact_requests WHERE to_id = $1::bigint AND status = 'declined'`,
+      [chatId]
+    );
+    const total = totalRes.rows[0]?.c ?? 0;
+
+    if (total === 0) {
+      await sendScreen(bot, chatId, user, {
+        text: "Пока нет отклонённых запросов.",
+        keyboard: Keyboards.backToMenu()
+      });
+      return;
+    }
+
+    const rows = await query<{
+      tg_id: number;
+      name: string | null;
+      username: string | null;
+      decided_at: string;
+    }>(
+      `SELECT u.tg_id, u.name, u.username, cr.decided_at
+       FROM contact_requests cr
+       JOIN users u ON u.tg_id = cr.from_id
+       WHERE cr.to_id = $1::bigint AND cr.status = 'declined'
+       ORDER BY cr.decided_at DESC NULLS LAST, cr.created_at DESC
+       LIMIT $2::int OFFSET $3::int`,
+      [chatId, PAGE_SIZE, offset]
+    );
+
+    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const currentPage = Math.min(Math.max(0, page), pageCount - 1);
+    const hasPrev = currentPage > 0;
+    const hasNext = currentPage < pageCount - 1;
+
+    const formatLine = (r: { tg_id: number; name: string | null; username: string | null; }): string => {
+      const name = r.name ? r.name : "Без имени";
+      const contact = r.username ? `@${r.username}` : `tg://user?id=${r.tg_id}`;
+      return `• ${name} — ${contact}`;
+    };
+
+    const lines = rows.rows.map(formatLine);
+    const header = `❌ Отклонённые запросы (${total}). Стр. ${currentPage + 1}/${pageCount}`;
+    const text = [header, "", ...lines].join("\n");
+
+    await sendScreen(bot, chatId, user, {
+      text,
+      keyboard: Keyboards.acceptedList(currentPage, hasPrev, hasNext)
+    });
+
+  } catch (error) {
+    await ErrorHandler.handleUserError(error as Error, chatId, chatId, 'show_declined_contacts');
+    await sendScreen(bot, chatId, user, { text: "Не удалось загрузить отклонённые запросы.", keyboard: Keyboards.backToMenu() });
+  }
+}
+
 // ТИХИЙ режим: возвращаем статус для отправителя, не меняем его экран
 export async function sendContactRequest(
   bot: TelegramBot,
