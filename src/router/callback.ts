@@ -21,7 +21,7 @@ import { logger } from "../lib/logger";
 import { ErrorHandler } from "../lib/errorHandler";
 import { clearBotMessages } from "../bot/helpers";
 import { createUploadSession } from "../lib/uploadSession";
-import { buildProfileCaption } from "../bot/profile";
+// duplicate import removed
 
 // Безопасное получение URL файла с fallback на file_id
 async function getSafeFileUrl(bot: TelegramBot, fileId: string): Promise<string | null> {
@@ -381,6 +381,10 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
       });
       return;
     }
+    if (verb === "noop") {
+      await ack(bot, cq.id);
+      return;
+    }
 
     // Навигация по фото-карусели
     if (verb === "phnav") {
@@ -613,7 +617,8 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     }
     if (verb === "accepted") {
       await ack(bot, cq.id);
-      await showAcceptedContacts(bot, chatId, user);
+      const page = id ? Number(id) : 0;
+      await showAcceptedContacts(bot, chatId, user, Number.isFinite(page) ? page : 0);
       return;
     }
     if (verb === "req" && id) {
@@ -623,12 +628,30 @@ export async function handleCallback(bot: TelegramBot, cq: CallbackQuery) {
     }
     if (verb === "accept" && id) {
       await ack(bot, cq.id);
-      await acceptContactRequest(bot, chatId, user, Number(id));
+      // Снимаем клавиатуру с текущего сообщения, чтобы не накладывались экраны
+      try {
+        if (cq.message?.message_id) {
+          await bot.editMessageReplyMarkup({ inline_keyboard: [] } as any, {
+            chat_id: chatId,
+            message_id: cq.message.message_id
+          } as any);
+        }
+      } catch {}
+      await acceptContactRequest(bot, chatId, user, Number(id), cq.message?.message_id);
       return;
     }
     if (verb === "decline" && id) {
       await ack(bot, cq.id);
-      await declineContactRequest(bot, chatId, user, Number(id));
+      // Снимаем клавиатуру с текущего сообщения, чтобы не накладывались экраны
+      try {
+        if (cq.message?.message_id) {
+          await bot.editMessageReplyMarkup({ inline_keyboard: [] } as any, {
+            chat_id: chatId,
+            message_id: cq.message.message_id
+          } as any);
+        }
+      } catch {}
+      await declineContactRequest(bot, chatId, user, Number(id), cq.message?.message_id);
       return;
     }
   }

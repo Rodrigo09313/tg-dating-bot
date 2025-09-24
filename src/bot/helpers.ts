@@ -5,6 +5,7 @@
 import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api";
 import { query } from "../db";
 import { logger } from "../lib/logger";
+import { hideReplyKeyboard } from "../lib/hideReply";
 
 // Тип пользователя как мы его обычно читаем из БД.
 // Поля минимально необходимые для экранов/состояний.
@@ -96,6 +97,14 @@ export async function sendScreen(
     }
   }
   // Убираем принудительную очистку - она создает проблемы
+
+  // Если далее будем показывать inline-клавиатуру, сначала скрываем возможную reply-клавиатуру
+  try {
+    const willShowInline = Array.isArray(o.keyboard) || (o.reply_markup && Array.isArray(o.reply_markup.inline_keyboard));
+    if (willShowInline) {
+      await hideReplyKeyboard(bot, chatId);
+    }
+  } catch {}
 
   const reply_markup = o.keyboard ? { inline_keyboard: o.keyboard } : o.reply_markup;
 
@@ -224,4 +233,19 @@ export async function clearBotMessages(bot: TelegramBot, chatId: number): Promis
       error: error instanceof Error ? error : new Error(String(error))
     });
   }
+}
+
+// Снять inline-клавиатуру с указанного сообщения
+export async function removeKeyboard(
+  bot: TelegramBot,
+  chatId: number,
+  messageId: number | null | undefined
+): Promise<void> {
+  if (!messageId) return;
+  try {
+    await bot.editMessageReplyMarkup({ inline_keyboard: [] } as any, {
+      chat_id: chatId,
+      message_id: Number(messageId)
+    } as any);
+  } catch {}
 }

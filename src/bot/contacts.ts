@@ -4,7 +4,7 @@ import { esc } from "../lib/html";
 
 import TelegramBot from "node-telegram-bot-api";
 import { query } from "../db";
-import { DbUser, sendScreen, ensureUser } from "./helpers";
+import { DbUser, sendScreen, ensureUser, removeKeyboard } from "./helpers";
 import { showMainMenu } from "./menu";
 import { Keyboards } from "../ui/keyboards";
 import { logger } from "../lib/logger";
@@ -73,32 +73,21 @@ export async function showContactRequestsList(bot: TelegramBot, chatId: number, 
   }
 }
 
-export async function showAcceptedContacts(bot: TelegramBot, chatId: number, user: DbUser) {
+export async function showAcceptedContacts(bot: TelegramBot, chatId: number, user: DbUser, page: number = 0) {
   try {
-    logger.userAction('show_accepted_contacts', chatId, chatId);
+    logger.userAction('show_accepted_contacts', chatId, chatId, { page });
 
-    const accepted = await query<{
-      tg_id: number;
-      name: string | null;
-      age: number | null;
-      city_name: string | null;
-      about: string | null;
-      file_id: string | null;
-      created_at: string;
-    }>(`
-      SELECT u.tg_id, u.name, u.age, u.city_name, u.about,
-             (SELECT p.file_id FROM photos p 
-              WHERE p.user_id = u.tg_id 
-              ORDER BY p.is_main DESC, p.pos ASC LIMIT 1) as file_id,
-             c.created_at
-      FROM contacts c
-      JOIN users u ON (u.tg_id = CASE WHEN c.a_id = $1 THEN c.b_id ELSE c.a_id END)
-      WHERE c.a_id = $1 OR c.b_id = $1
-      ORDER BY c.created_at DESC
-      LIMIT 20
-    `, [chatId]);
+    const PAGE_SIZE = 5;
+    const offset = Math.max(0, page) * PAGE_SIZE;
 
-    if (accepted.rows.length === 0) {
+    // Всего контактов
+    const totalRes = await query<{ c: number }>(
+      `SELECT COUNT(*)::int AS c FROM contacts WHERE a_id = $1::bigint OR b_id = $1::bigint`,
+      [chatId]
+    );
+    const total = totalRes.rows[0]?.c ?? 0;
+
+    if (total === 0) {
       await sendScreen(bot, chatId, user, {
         text: "Пока нет принятых контактов.",
         keyboard: Keyboards.backToMenu()
@@ -106,17 +95,39 @@ export async function showAcceptedContacts(bot: TelegramBot, chatId: number, use
       return;
     }
 
-    const first = accepted.rows[0];
-    const caption = buildUserCaption(first);
+    const rows = await query<{
+      tg_id: number;
+      name: string | null;
+      username: string | null;
+      created_at: string;
+    }>(
+      `SELECT u.tg_id, u.name, u.username, c.created_at
+       FROM contacts c
+       JOIN users u ON u.tg_id = CASE WHEN c.a_id = $1::bigint THEN c.b_id ELSE c.a_id END
+       WHERE c.a_id = $1::bigint OR c.b_id = $1::bigint
+       ORDER BY c.created_at DESC
+       LIMIT $2::int OFFSET $3::int`,
+      [chatId, PAGE_SIZE, offset]
+    );
+
+    const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    const currentPage = Math.min(Math.max(0, page), pageCount - 1);
+    const hasPrev = currentPage > 0;
+    const hasNext = currentPage < pageCount - 1;
+
+    const formatLine = (r: { tg_id: number; name: string | null; username: string | null; }): string => {
+      const name = r.name ? r.name : "Без имени";
+      const contact = r.username ? `@${r.username}` : `tg://user?id=${r.tg_id}`;
+      return `• ${name} — ${contact}`;
+    };
+
+    const lines = rows.rows.map(formatLine);
+    const header = `✅ Принятые контакты (${total}). Стр. ${currentPage + 1}/${pageCount}`;
+    const text = [header, "", ...lines].join("\n");
 
     await sendScreen(bot, chatId, user, {
-      photoFileId: first.file_id || undefined,
-      text: first.file_id ? undefined : caption,
-      caption: first.file_id ? caption : undefined,
-      keyboard: [
-        [{ text: "💞 Найти ещё", callback_data: mkCb(CB.BRW, "start") }],
-        [{ text: "🏠 В меню", callback_data: mkCb(CB.SYS, "menu") }]
-      ]
+      text,
+      keyboard: Keyboards.acceptedList(currentPage, hasPrev, hasNext)
     });
 
   } catch (error) {
@@ -198,7 +209,7 @@ export async function sendContactRequest(bot: TelegramBot, chatId: number, user:
   }
 }
 
-export async function acceptContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number) {
+export async function acceptContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number, sourceMessageId?: number) {
   try {
     logger.userAction('accept_contact_request', chatId, chatId, { requestId });
     
@@ -280,6 +291,21 @@ export async function acceptContactRequest(bot: TelegramBot, chatId: number, use
     // Подтверждение принимающему (как отдельное сообщение, чтобы не падать на sendScreen)
     try { await bot.sendMessage(chatId, "✅ Контакт принят! Теперь вы можете общаться."); } catch {}
 
+    // Обновляем сообщение, по которому кликнули: снимаем клавиатуру и ставим статус
+    if (sourceMessageId) {
+      try {
+        await bot.editMessageReplyMarkup({ inline_keyboard: [] } as any, { chat_id: chatId, message_id: sourceMessageId } as any);
+        try {
+          await bot.editMessageCaption("✅ Запрос принят", { chat_id: chatId, message_id: sourceMessageId, parse_mode: "HTML" } as any);
+        } catch {
+          try { await bot.editMessageText("✅ Запрос принят", { chat_id: chatId, message_id: sourceMessageId, parse_mode: "HTML" } as any); } catch {}
+        }
+      } catch {}
+    }
+
+    // Снимаем клавиатуру с предыдущего экрана (если осталась)
+    await removeKeyboard(bot, chatId, user.last_screen_msg_id || undefined);
+
     // Вернём пользователя в главное меню, обновив клавиатуру экрана
     const freshUser = await ensureUser(chatId, user.username);
     await showMainMenu(bot, chatId, freshUser);
@@ -290,7 +316,7 @@ export async function acceptContactRequest(bot: TelegramBot, chatId: number, use
   }
 }
 
-export async function declineContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number) {
+export async function declineContactRequest(bot: TelegramBot, chatId: number, user: DbUser, requestId: number, sourceMessageId?: number) {
   try {
     logger.userAction('decline_contact_request', chatId, chatId, { requestId });
     
@@ -303,6 +329,21 @@ export async function declineContactRequest(bot: TelegramBot, chatId: number, us
     
     // Сообщение-подтверждение оставляем в чате
     try { await bot.sendMessage(chatId, "❌ Запрос отклонен."); } catch {}
+
+    // Обновляем сообщение, по которому кликнули: снимаем клавиатуру и ставим статус
+    if (sourceMessageId) {
+      try {
+        await bot.editMessageReplyMarkup({ inline_keyboard: [] } as any, { chat_id: chatId, message_id: sourceMessageId } as any);
+        try {
+          await bot.editMessageCaption("❌ Запрос отклонен", { chat_id: chatId, message_id: sourceMessageId, parse_mode: "HTML" } as any);
+        } catch {
+          try { await bot.editMessageText("❌ Запрос отклонен", { chat_id: chatId, message_id: sourceMessageId, parse_mode: "HTML" } as any); } catch {}
+        }
+      } catch {}
+    }
+
+    // Снимаем клавиатуру с предыдущего экрана (если осталась)
+    await removeKeyboard(bot, chatId, user.last_screen_msg_id || undefined);
 
     // Вернуть пользователя в главное меню с обновленной клавиатурой
     const freshUser = await ensureUser(chatId, user.username);

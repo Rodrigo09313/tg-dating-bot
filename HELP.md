@@ -36,6 +36,18 @@ package.json (скрипт tools:clear)
 
 
 
+# Проверяем статус
+git status
+
+# Добавляем все изменения
+git add .
+
+# Создаем коммит
+git commit -m "feat: улучшения UI и исправление базы данных"
+
+# Отправляем в репозиторий
+git push origin feature/ui-improvements
+
 
 
 Ежедневная работа (git)

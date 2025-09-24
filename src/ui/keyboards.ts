@@ -269,6 +269,20 @@ export const Keyboards = {
     ];
   },
 
+  // Принятые контакты — пагинация
+  acceptedList(page: number, hasPrev: boolean, hasNext: boolean): InlineKeyboardButton[][] {
+    // На первой странице не показываем кнопки листания вовсе
+    if (page === 0) {
+      return [[{ text: "🏠 В меню", callback_data: mkCb(CB.SYS, "menu") }]];
+    }
+
+    const row: InlineKeyboardButton[] = [];
+    if (hasPrev) row.push({ text: "◀️", callback_data: mkCb(CB.CR, "accepted", page - 1) });
+    row.push({ text: "🏠 В меню", callback_data: mkCb(CB.SYS, "menu") });
+    if (hasNext) row.push({ text: "▶️", callback_data: mkCb(CB.CR, "accepted", page + 1) });
+    return [row];
+  },
+
   // Рулетка
   rouletteWaiting(): InlineKeyboardButton[][] {
     return [
