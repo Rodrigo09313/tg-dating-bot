@@ -2,11 +2,11 @@
 // Чат-рулетка - анонимный чат с ближайшим пользователем
 
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen, setState } from "./helpers";
-import { Keyboards } from "../ui/keyboards";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
+import { query } from "../db.js";
+import { DbUser, sendScreen, setState } from "./helpers.js";
+import { Keyboards } from "../ui/keyboards.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
 
 export async function startRoulette(bot: TelegramBot, chatId: number, user: DbUser) {
   try {

@@ -3,9 +3,9 @@
 // Код безопасен к "пустому тексту": никогда не пошлём пустой message/caption.
 
 import TelegramBot, { InlineKeyboardButton } from "node-telegram-bot-api";
-import { query } from "../db";
-import { logger } from "../lib/logger";
-import { hideReplyKeyboard } from "../lib/hideReply";
+import { query } from "../db.js";
+import { logger } from "../lib/logger.js";
+import { hideReplyKeyboard } from "../lib/hideReply.js";
 
 // Тип пользователя как мы его обычно читаем из БД.
 // Поля минимально необходимые для экранов/состояний.

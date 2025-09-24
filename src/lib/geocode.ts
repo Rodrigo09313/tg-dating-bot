@@ -6,7 +6,7 @@
 // 3) Отбрасываем "район"/"микрорайон"/"пгт"/"посёлок" и т.п.
 // 4) Эта функция возвращает ПОДСКАЗКУ. В БД город пишется только когда пользователь отправит текст.
 
-import { GEOCODER_PROVIDER, GEOCODER_EMAIL, YANDEX_GEOCODER_KEY } from "../config";
+import { GEOCODER_PROVIDER, GEOCODER_EMAIL, YANDEX_GEOCODER_KEY } from "../config.js";
 
 export type RevResult = { cityName?: string | null; raw?: any };
 

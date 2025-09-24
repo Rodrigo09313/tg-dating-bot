@@ -1,15 +1,15 @@
-import { esc } from "../lib/html";
+import { esc } from "../lib/html.js";
 // src/bot/favorites.ts
 // Управление избранными пользователями
 
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen } from "./helpers";
-import { Keyboards } from "../ui/keyboards";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
-import { mkCb } from "../ui/cb";
-import { CB } from "../types";
+import { query } from "../db.js";
+import { DbUser, sendScreen } from "./helpers.js";
+import { Keyboards } from "../ui/keyboards.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
+import { mkCb } from "../ui/cb.js";
+import { CB } from "../types.js";
 
 export async function showFavoritesList(bot: TelegramBot, chatId: number, user: DbUser) {
   try {

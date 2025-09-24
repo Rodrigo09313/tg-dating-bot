@@ -1,26 +1,26 @@
 // src/router/callback.ts
 import TelegramBot, { CallbackQuery } from "node-telegram-bot-api";
-import { parseCb } from "../ui/cb";
-import { ensureUser, isScreenExpired, sendScreen } from "../bot/helpers";
-import { showHelp, showMainMenu } from "../bot/menu";
-import { query } from "../db";
-import { TXT } from "../ui/text";
-import { mkCb } from "../ui/cb";
-import { CB } from "../types";
+import { parseCb } from "../ui/cb.js";
+import { ensureUser, isScreenExpired, sendScreen } from "../bot/helpers.js";
+import { showHelp, showMainMenu } from "../bot/menu.js";
+import { query } from "../db.js";
+import { TXT } from "../ui/text.js";
+import { mkCb } from "../ui/cb.js";
+import { CB } from "../types.js";
 import {
   regAskSeek, regAskCity, regAskPhoto, regShowPreview, regConfirm
-} from "../bot/registration";
-import { showProfile, getAllPhotoIds, buildProfileCaption, showContactsMenu } from "../bot/profile";
-import { importPhotosFromTelegramProfile } from "../bot/photo";
-import { showFavoritesList, addToFavorites, removeFromFavorites, showFavoritesCard } from "../bot/favorites";
-import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts, showDeclinedContacts } from "../bot/contacts";
-import { reportUser } from "../bot/reports";
-import { startRoulette, stopRoulette } from "../bot/roulette";
-import { Keyboards, BUTTONS } from "../ui/keyboards";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
-import { clearBotMessages } from "../bot/helpers";
-import { createUploadSession } from "../lib/uploadSession";
+} from "../bot/registration.js";
+import { showProfile, getAllPhotoIds, buildProfileCaption, showContactsMenu } from "../bot/profile.js";
+import { importPhotosFromTelegramProfile } from "../bot/photo.js";
+import { showFavoritesList, addToFavorites, removeFromFavorites, showFavoritesCard } from "../bot/favorites.js";
+import { showContactRequestsList, sendContactRequest, acceptContactRequest, declineContactRequest, showAcceptedContacts, showDeclinedContacts } from "../bot/contacts.js";
+import { reportUser } from "../bot/reports.js";
+import { startRoulette, stopRoulette } from "../bot/roulette.js";
+import { Keyboards, BUTTONS } from "../ui/keyboards.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
+import { clearBotMessages } from "../bot/helpers.js";
+import { createUploadSession } from "../lib/uploadSession.js";
 // duplicate import removed
 
 // Безопасное получение URL файла с fallback на file_id

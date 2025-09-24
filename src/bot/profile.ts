@@ -1,10 +1,10 @@
-import { esc } from "../lib/html";
+import { esc } from "../lib/html.js";
 // src/bot/profile.ts
 // Экран "Профиль" с каруселью фото: одно сообщение, фото переключаются через editMessageMedia.
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen } from "./helpers";
-import { Keyboards } from "../ui/keyboards";
+import { query } from "../db.js";
+import { DbUser, sendScreen } from "./helpers.js";
+import { Keyboards } from "../ui/keyboards.js";
 
 
 // Все фото пользователя (до 3), в порядке pos ASC

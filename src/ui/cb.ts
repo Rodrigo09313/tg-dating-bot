@@ -1,5 +1,5 @@
 // src/ui/cb.ts
-import { CB } from "../types";
+import { CB } from "../types.js";
 
 export type ParsedCb = {
   prefix: string;

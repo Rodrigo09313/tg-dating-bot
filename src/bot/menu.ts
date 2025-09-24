@@ -2,9 +2,9 @@
 // Главное меню и /help. Всегда отдаём осмысленный текст, чтобы не было пустых sendMessage.
 
 import TelegramBot from "node-telegram-bot-api";
-import { DbUser, sendScreen, setState } from "./helpers";
-import { Keyboards } from "../ui/keyboards";
-import { TXT } from "../ui/text";
+import { DbUser, sendScreen, setState } from "./helpers.js";
+import { Keyboards } from "../ui/keyboards.js";
+import { TXT } from "../ui/text.js";
 
 export async function showMainMenu(bot: TelegramBot, chatId: number, user: DbUser) {
   await setState(chatId, "idle");

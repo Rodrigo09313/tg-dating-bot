@@ -2,10 +2,10 @@
 // Система жалоб и модерации
 
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen } from "./helpers";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
+import { query } from "../db.js";
+import { DbUser, sendScreen } from "./helpers.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
 
 export async function reportUser(
   bot: TelegramBot, 

@@ -1,6 +1,6 @@
 // src/tools/clearInteractions.ts
 import 'dotenv/config';
-import { pool, query, waitForDb } from "../db";
+import { pool, query, waitForDb } from "../db.js";
 
 /**
  * Очищает историю взаимодействий: contact_requests, contacts

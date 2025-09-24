@@ -1,18 +1,18 @@
-import { esc } from "../lib/html";
+import { esc } from "../lib/html.js";
 // src/bot/browse.ts
 // Показ следующей анкеты: показываем всех пользователей подряд, исключая уже показанных.
 // Когда список заканчивается, начинаем показ с начала.
 // Показываем главное фото, подпись с расстоянием (если есть), кнопки — из kb.browseCard.
 
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen, setState } from "./helpers";
-import { Keyboards } from "../ui/keyboards";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
-import { TXT } from "../ui/text";
-import { mkCb } from "../ui/cb";
-import { CB } from "../types";
+import { query } from "../db.js";
+import { DbUser, sendScreen, setState } from "./helpers.js";
+import { Keyboards } from "../ui/keyboards.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
+import { TXT } from "../ui/text.js";
+import { mkCb } from "../ui/cb.js";
+import { CB } from "../types.js";
 
 // Конфиг по умолчанию (убрано - больше не используем фильтры)
 

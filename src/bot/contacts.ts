@@ -1,17 +1,17 @@
-import { esc } from "../lib/html";
+import { esc } from "../lib/html.js";
 // src/bot/contacts.ts
 // Управление запросами на контакты
 
 import TelegramBot from "node-telegram-bot-api";
-import { query } from "../db";
-import { DbUser, sendScreen, ensureUser, removeKeyboard } from "./helpers";
-import { showMainMenu } from "./menu";
-import { Keyboards } from "../ui/keyboards";
-import { logger } from "../lib/logger";
-import { ErrorHandler } from "../lib/errorHandler";
-import { mkCb } from "../ui/cb";
-import { CB } from "../types";
-import { browseShowNext } from "./browse";
+import { query } from "../db.js";
+import { DbUser, sendScreen, ensureUser, removeKeyboard } from "./helpers.js";
+import { showMainMenu } from "./menu.js";
+import { Keyboards } from "../ui/keyboards.js";
+import { logger } from "../lib/logger.js";
+import { ErrorHandler } from "../lib/errorHandler.js";
+import { mkCb } from "../ui/cb.js";
+import { CB } from "../types.js";
+import { browseShowNext } from "./browse.js";
 
 export async function showContactRequestsList(bot: TelegramBot, chatId: number, user: DbUser) {
   try {
